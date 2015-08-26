@@ -89,48 +89,44 @@ impl LAlloc {
     /// `region_ref` : the reference point of the region (optional)
     pub fn alloc_from_region(&mut self, req: &LReq, region_pos: f64, region_size: f64,
                              region_ref: Option<f64>) {
-        match req.size().before_ref_opt() {
-            Some(req_ref) => {
+        match req.size().before_and_after_ref_opt() {
+            Some((req_before, req_after)) => {
                 // Both the allocation region and the requisition have a reference point
 
-                // If the region's reference point is too close to the start, then compute
-                // the offset required to move it to the required reference point
-                let ref_offset = match region_ref {
-                    Some(avail_ref) => fast_max(req_ref - avail_ref, 0.0),
-                    None => 0.0,
+                // If the region's reference point is not aligned with the required
+                // reference point, compute the offset
+                let (ref_offset, alloc_before) = match region_ref {
+                    Some(avail_ref) => (fast_max(avail_ref - req_before, 0.0), avail_ref),
+                    None => (0.0, req_before),
                 };
 
-                // Compute the preferred and minimum sizes
-                let preferred_size = req.size().size() + ref_offset;
-                // Don't need to add `ref_offset` to `minimum_size` is its already added to
-                // `preferred_size` that is used to compute `minimum_size`.
+                // Compute the preferred and minimum sizes and end points
+                // End points are the sizes that include the offset that aligns the required
+                // reference point with the region reference point
+                let preferred_size = req.size().size();
                 let minimum_size = preferred_size - req.flex().shrink();
+                let preferred_end = preferred_size + ref_offset;
+                let minimum_end = minimum_size + ref_offset;
 
-                if region_size < minimum_size * ONE_MINUS_EPSILON {
+                if region_size < minimum_end * ONE_MINUS_EPSILON {
                     // Insufficient space
-                    self.update_ref(region_pos, region_size, minimum_size, req_ref);
-                } else if region_size > preferred_size * ONE_PLUS_EPSILON {
+                    self.update_ref(ref_offset + region_pos, region_size - ref_offset,
+                                    minimum_size, alloc_before - ref_offset);
+                } else if region_size > preferred_end * ONE_PLUS_EPSILON {
                     // More space than preferred size
                     if req.flex().stretch() > 0.0 {
                         // Stretch to take up additional space
-                        let ref_point = match region_ref {
-                            None => req_ref,
-                            Some(avail_ref) => fast_max(avail_ref, req_ref),
-                        };
-                        self.update_ref(region_pos, region_size, region_size, ref_point);
+                        self.update_ref(region_pos, region_size, region_size, alloc_before);
                     } else {
-                        let offset = match region_ref {
-                            None => 0.0,
-                            Some(avail_ref) =>
-                                fast_min(fast_max(avail_ref - req_ref, 0.0), preferred_size)
-                        };
                         // No stretch; don't take up additional space
-                        self.update_ref(offset + region_pos, preferred_size, preferred_size,
-                                        req_ref);
+                        self.update_ref(ref_offset + region_pos, preferred_size, preferred_size,
+                                        alloc_before - ref_offset);
                     }
                 } else {
-                    // region_size is between minimum and preferred size
-                    self.update_ref(region_pos, region_size, region_size, req_ref);
+                    // region_size is between minimum and preferred end
+                    let alloc_size = region_size - ref_offset;
+                    self.update_ref(ref_offset + region_pos, alloc_size, alloc_size,
+                                    alloc_before - ref_offset);
                 }
             },
 
@@ -370,47 +366,163 @@ mod tests {
         //
         // FIXED SIZE
         //
-        // Fixed size, too small
+        // Fixed ref, too small
         assert_eq!(_alloc_region(
             &LReq::new_fixed_ref(3.0, 7.0), 0.0, 5.0),
             LAlloc::new_ref(0.0, 5.0, 10.0, 3.0));
-        // Fixed size, too small with ref too small
+        // Fixed ref, too small with ref too small
         assert_eq!(_alloc_region_ref(
             &LReq::new_fixed_ref(3.0, 7.0), 0.0, 5.0, 2.0),
-            LAlloc::new_ref(0.0, 5.0, 11.0, 3.0));
-        // Fixed size, too small with ref
+            LAlloc::new_ref(0.0, 5.0, 10.0, 2.0));
+        // Fixed ref, too small with ref
         assert_eq!(_alloc_region_ref(
             &LReq::new_fixed_ref(3.0, 7.0), 0.0, 5.0, 3.0),
             LAlloc::new_ref(0.0, 5.0, 10.0, 3.0));
+        // Fixed ref, too small with ref offset
+        assert_eq!(_alloc_region_ref(
+            &LReq::new_fixed_ref(3.0, 7.0), 0.0, 5.0, 4.0),
+            LAlloc::new_ref(1.0, 4.0, 10.0, 3.0));
 
-        // Fixed size, natural size
+        // Fixed ref, natural size
         assert_eq!(_alloc_region(
             &LReq::new_fixed_ref(3.0, 7.0), 0.0, 10.0),
             LAlloc::new_ref(0.0, 10.0, 10.0, 3.0));
-        // Fixed size, natural size with ref too small
+        // Fixed ref, natural size with ref too small
         assert_eq!(_alloc_region_ref(
             &LReq::new_fixed_ref(3.0, 7.0), 0.0, 10.0, 2.0),
-            LAlloc::new_ref(0.0, 10.0, 11.0, 3.0));
-        // Fixed size, natural size with ref
+            LAlloc::new_ref(0.0, 10.0, 10.0, 2.0));
+        // Fixed ref, natural size with ref
         assert_eq!(_alloc_region_ref(
             &LReq::new_fixed_ref(3.0, 7.0), 0.0, 10.0, 3.0),
             LAlloc::new_ref(0.0, 10.0, 10.0, 3.0));
+        // Fixed ref, natural size with ref offset
+        assert_eq!(_alloc_region_ref(
+            &LReq::new_fixed_ref(3.0, 7.0), 0.0, 10.0, 4.0),
+            LAlloc::new_ref(1.0, 9.0, 10.0, 3.0));
 
-        // Fixed size, extra space
+        // Fixed ref, extra space
         assert_eq!(_alloc_region(
             &LReq::new_fixed_ref(3.0, 7.0), 0.0, 20.0),
             LAlloc::new_ref(0.0, 10.0, 10.0, 3.0));
-        // Fixed size, extra space with ref too small
+        // Fixed ref, extra space with ref too small
         assert_eq!(_alloc_region_ref(
             &LReq::new_fixed_ref(3.0, 7.0), 0.0, 20.0, 2.0),
-            LAlloc::new_ref(0.0, 11.0, 11.0, 3.0));
-        // Fixed size, extra space with ref in correct place
+            LAlloc::new_ref(0.0, 10.0, 10.0, 2.0));
+        // Fixed ref, extra space with ref in correct place
+        assert_eq!(_alloc_region_ref(
+            &LReq::new_fixed_ref(3.0, 7.0), 0.0, 20.0, 3.0),
+            LAlloc::new_ref(0.0, 10.0, 10.0, 3.0));
+        // Fixed ref, extra space with ref further along; should offset position
         assert_eq!(_alloc_region_ref(
             &LReq::new_fixed_ref(3.0, 7.0), 0.0, 20.0, 5.0),
             LAlloc::new_ref(2.0, 10.0, 10.0, 3.0));
-        // Fixed size, extra space with ref further along; should offset position
+
+        //
+        // FLEXIBLE SIZE WITH SHRINK
+        //
+        // Flexible ref with shrink, too small
+        assert_eq!(_alloc_region(
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 0.0), 0.0, 4.0),
+            LAlloc::new_ref(0.0, 4.0, 5.0, 3.0));
+        // Flexible ref with shrink, too small with ref too small
         assert_eq!(_alloc_region_ref(
-            &LReq::new_fixed_ref(3.0, 7.0), 0.0, 20.0, 5.0),
-            LAlloc::new_ref(2.0, 10.0, 10.0, 3.0));
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 0.0), 0.0, 4.0, 2.0),
+            LAlloc::new_ref(0.0, 4.0, 5.0, 2.0));
+        // Flexible ref with shrink, too small with correct ref
+        assert_eq!(_alloc_region_ref(
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 0.0), 0.0, 4.0, 3.0),
+            LAlloc::new_ref(0.0, 4.0, 5.0, 3.0));
+        // Flexible ref with shrink, too small with ref offset
+        assert_eq!(_alloc_region_ref(
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 0.0), 0.0, 4.0, 4.0),
+            LAlloc::new_ref(1.0, 3.0, 5.0, 3.0));
+
+        // Flexible ref with shrink, minimum size
+        assert_eq!(_alloc_region(
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 0.0), 0.0, 5.0),
+            LAlloc::new_ref(0.0, 5.0, 5.0, 3.0));
+        // Flexible ref with shrink, minimum size with ref too small
+        assert_eq!(_alloc_region_ref(
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 0.0), 0.0, 5.0, 2.0),
+            LAlloc::new_ref(0.0, 5.0, 5.0, 2.0));
+        // Flexible ref with shrink, minimum size with ref correct
+        assert_eq!(_alloc_region_ref(
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 0.0), 0.0, 5.0, 3.0),
+            LAlloc::new_ref(0.0, 5.0, 5.0, 3.0));
+        // Flexible ref with shrink, minimum size with ref offset
+        assert_eq!(_alloc_region_ref(
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 0.0), 0.0, 5.0, 4.0),
+            LAlloc::new_ref(1.0, 4.0, 5.0, 3.0));
+
+        // Flexible ref with shrink, preferred size
+        assert_eq!(_alloc_region(
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 0.0), 0.0, 10.0),
+            LAlloc::new_ref(0.0, 10.0, 10.0, 3.0));
+        // Flexible ref with shrink, preferred size with ref too small
+        assert_eq!(_alloc_region_ref(
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 0.0), 0.0, 10.0, 2.0),
+            LAlloc::new_ref(0.0, 10.0, 10.0, 2.0));
+        // Flexible ref with shrink, preferred size with ref correct
+        assert_eq!(_alloc_region_ref(
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 0.0), 0.0, 10.0, 3.0),
+            LAlloc::new_ref(0.0, 10.0, 10.0, 3.0));
+        // Flexible ref with shrink, preferred size with ref offset
+        assert_eq!(_alloc_region_ref(
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 0.0), 0.0, 10.0, 4.0),
+            LAlloc::new_ref(1.0, 9.0, 9.0, 3.0));
+
+        // Flexible ref with shrink, extra space
+        assert_eq!(_alloc_region(
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 0.0), 0.0, 20.0),
+            LAlloc::new_ref(0.0, 10.0, 10.0, 3.0));
+        // Flexible ref with shrink, extra space with ref too small
+        assert_eq!(_alloc_region_ref(
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 0.0), 0.0, 20.0, 2.0),
+            LAlloc::new_ref(0.0, 10.0, 10.0, 2.0));
+        // Flexible ref with shrink,extra space with ref correct
+        assert_eq!(_alloc_region_ref(
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 0.0), 0.0, 20.0, 3.0),
+            LAlloc::new_ref(0.0, 10.0, 10.0, 3.0));
+        // Flexible ref with shrink, extra space with ref offset
+        assert_eq!(_alloc_region_ref(
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 0.0), 0.0, 20.0, 4.0),
+            LAlloc::new_ref(1.0, 10.0, 10.0, 3.0));
+
+        //
+        // FLEXIBLE SIZE WITH SHRINK AND (ARBITRARY) STRETCH
+        //
+        // Flexible ref with shrink and stretch, preferred size
+        assert_eq!(_alloc_region(
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 3.14), 0.0, 10.0),
+            LAlloc::new_ref(0.0, 10.0, 10.0, 3.0));
+        // Flexible ref with shrink and stretch, preferred size with ref too small
+        assert_eq!(_alloc_region_ref(
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 3.14), 0.0, 10.0, 2.0),
+            LAlloc::new_ref(0.0, 10.0, 10.0, 2.0));
+        // Flexible ref with shrink and stretch, preferred size with ref correct
+        assert_eq!(_alloc_region_ref(
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 3.14), 0.0, 10.0, 3.0),
+            LAlloc::new_ref(0.0, 10.0, 10.0, 3.0));
+        // Flexible ref with shrink and stretch, preferred size with ref offset
+        assert_eq!(_alloc_region_ref(
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 3.14), 0.0, 10.0, 4.0),
+            LAlloc::new_ref(1.0, 9.0, 9.0, 3.0));
+
+        // Flexible ref with shrink and stretch, extra space
+        assert_eq!(_alloc_region(
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 3.14), 0.0, 20.0),
+            LAlloc::new_ref(0.0, 20.0, 20.0, 3.0));
+        // Flexible ref with shrink and stretch, extra space with ref too small
+        assert_eq!(_alloc_region_ref(
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 3.14), 0.0, 20.0, 2.0),
+            LAlloc::new_ref(0.0, 20.0, 20.0, 2.0));
+        // Flexible ref with shrink and stretch,extra space with ref correct
+        assert_eq!(_alloc_region_ref(
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 3.14), 0.0, 20.0, 3.0),
+            LAlloc::new_ref(0.0, 20.0, 20.0, 3.0));
+        // Flexible ref with shrink and stretch, extra space with ref offset
+        assert_eq!(_alloc_region_ref(
+            &LReq::new_flex_ref(3.0, 7.0, 5.0, 3.14), 0.0, 20.0, 4.0),
+            LAlloc::new_ref(0.0, 20.0, 20.0, 4.0));
     }
 }
