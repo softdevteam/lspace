@@ -314,8 +314,11 @@ impl LNatSize {
                 // no reference point
                 None => tail.iter().fold(head.as_size(), |acc, x| {acc.add(x, space_between)}),
                 // reference point at index `i`, enumerate children and s
-                Some(i) => tail.iter().enumerate().fold(head.as_ref(),
+                Some(i) => {
+                    assert!(i < boxes.len());
+                    tail.iter().enumerate().fold(head.as_ref(),
                         |acc, (j, x)| {acc.add_ref(x, space_between, i==(j+1))})
+                },
             }
         }
     }
