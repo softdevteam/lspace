@@ -91,9 +91,8 @@ impl LAlloc {
     pub fn alloc_from_region(&mut self, child_req: &LReq, region_pos: f64, region_size: f64,
                              region_ref: Option<f64>) {
         match child_req.size().before_and_after_ref_opt() {
+            // Both the allocation region and the requisition have a reference point
             Some((req_before, req_after)) => {
-                // Both the allocation region and the requisition have a reference point
-
                 // If the region's reference point is not aligned with the required
                 // reference point, compute the offset
                 let (ref_offset, alloc_before) = match region_ref {
@@ -131,8 +130,8 @@ impl LAlloc {
                 }
             },
 
+            // No reference point required
             None => {
-                // No reference point required
                 let natural_size = child_req.size().size();
                 let minimum_size = natural_size - child_req.flex().shrink();
 
@@ -159,9 +158,9 @@ impl LAlloc {
     }
 
 
-    fn _alloc_children_linear(n: usize,
-                              child_reqs: &[&LReq], child_allocs: &mut [&mut LAlloc],
-                              start_pos: f64, space_between: f64) -> f64 {
+    fn _alloc_children_linear_fixed(n: usize,
+                                    child_reqs: &[&LReq], child_allocs: &mut [&mut LAlloc],
+                                    start_pos: f64, space_between: f64) -> f64 {
         let mut pos = start_pos;
         for i in 0..n {
             let creq = child_reqs[i];
@@ -172,35 +171,18 @@ impl LAlloc {
         return pos;
     }
 
-    fn _alloc_children_linear_shrink(n: usize,
-                            child_reqs: &[&LReq], child_allocs: &mut [&mut LAlloc],
-                            start_pos: f64, space_between: f64, shrink_frac: f64) -> f64 {
+    fn _alloc_children_linear_flex(n: usize,
+                                   child_reqs: &[&LReq], child_allocs: &mut [&mut LAlloc],
+                                   start_pos: f64, space_between: f64,
+                                   shrink_frac: f64, stretch_factor: f64) -> f64 {
         let mut pos = start_pos;
         for i in 0..n {
             let creq = child_reqs[i];
-            let csz = creq.size().size() - creq.flex().shrink() * shrink_frac;
-
-            child_allocs[i].alloc_from_region(creq, pos, csz, creq.size().before_ref_opt());
-            pos = pos + csz + space_between;
-        }
-        return pos;
-    }
-
-    fn _alloc_children_linear_stretch(n: usize,
-                            child_reqs: &[&LReq], child_allocs: &mut [&mut LAlloc],
-                            start_pos: f64, space_between: f64, stretch_factor: f64) -> f64 {
-        // `stretch_factor = stretch_space / stretch_sum`
-        // where `stretch_space` is the additional space available over the natural size
-        // and `stretch_sum` is the sum of all the stretch factors from the child
-        // requisitions
-        // multiplying `stretch_factor` by req.size().stretch() will compute the extra space
-        // to alloate to that child
-        let mut pos = start_pos;
-        for i in 0..n {
-            let creq = child_reqs[i];
+            let cshrink = creq.flex().shrink() * shrink_frac;
             let cstretch = (creq.flex().stretch() as f64) * stretch_factor;
+
             let sz = creq.size().size();
-            let csz = sz + cstretch;
+            let csz = creq.size().size() - cshrink + cstretch;
             let cref = match creq.size().before_ref_opt() {
                 None => None,
                 Some(before_ref) => Some(before_ref + cstretch * before_ref / sz),
@@ -212,37 +194,54 @@ impl LAlloc {
         return pos;
     }
 
-    fn _alloc_children(n: usize, child_reqs: &[&LReq], child_allocs: &mut [&mut LAlloc],
-                       natural_size: f64, minimum_size: f64, region_pos: f64, region_size: f64,
-                       region_stretch: f32, space_between: f64, pad_start: bool) -> f64 {
+    fn _compute_flex_factors(region_size: f64, minimum_size: f64, natural_size: f64,
+                             region_stretch: f32) -> Option<(f64, f64)> {
         if region_size < minimum_size * ONE_MINUS_EPSILON {
             // Insufficient space; allocate minimum space; shrink_frac=1.0
-            return LAlloc::_alloc_children_linear_shrink(n, child_reqs, child_allocs,
-                region_pos, space_between, 1.0);
+            return Some((1.0, 0.0));
         } else if region_size < natural_size * ONE_MINUS_EPSILON {
             // Region_size is between minimum and natural size
             let shrink_frac = (region_size - natural_size) /
                     (minimum_size - natural_size);
-            return LAlloc::_alloc_children_linear_shrink(n, child_reqs, child_allocs,
-                region_pos, space_between, shrink_frac);
+            return Some((shrink_frac, 0.0));
         } else if region_size > natural_size * ONE_PLUS_EPSILON {
             let stretch_space = region_size - natural_size;
 
             if region_stretch > 0.0 {
                 // Region size is greater than the natural size and stretch > 0
                 let stretch_factor = stretch_space / region_stretch as f64;
-                return LAlloc::_alloc_children_linear_stretch(n, child_reqs, child_allocs,
-                    region_pos, space_between, stretch_factor);
+                return Some((0.0, stretch_factor));
             } else {
-                let start = if pad_start {region_pos + stretch_space} else {region_pos};
-                // Region size matches natural size
-                return LAlloc::_alloc_children_linear(n, child_reqs, child_allocs, start,
-                    space_between);
+                // This element won't stretch
+                return None;
             }
         } else {
             // Region size matches natural size
-            return LAlloc::_alloc_children_linear(n, child_reqs, child_allocs, region_pos,
-                space_between);
+            return None;
+        }
+    }
+
+
+    fn _alloc_children(n: usize, child_reqs: &[&LReq], child_allocs: &mut [&mut LAlloc],
+                       natural_size: f64, minimum_size: f64, region_pos: f64, region_size: f64,
+                       region_stretch: f32, space_between: f64, pad_start: bool) -> f64 {
+        match LAlloc::_compute_flex_factors(region_size, minimum_size, natural_size,
+                                            region_stretch) {
+            Some((shrink_frac, stretch_frac)) => {
+                LAlloc::_alloc_children_linear_flex(n, child_reqs, child_allocs,
+                    region_pos, space_between, shrink_frac, stretch_frac)
+            },
+
+            None => {
+                let start = if pad_start {
+                    let stretch_space = region_size - natural_size;
+                    region_pos + stretch_space
+                } else {
+                    region_pos
+                };
+                LAlloc::_alloc_children_linear_fixed(n, child_reqs, child_allocs, start,
+                    space_between)
+            }
         }
     }
 
@@ -259,9 +258,9 @@ impl LAlloc {
     /// `ref_point_index` : an optional index that identifies a child element that is to have its
     /// reference point aligned with that of the region
     pub fn alloc_linear(child_reqs: &Vec<&LReq>, child_allocs: &mut Vec<&mut LAlloc>,
-                        region_req: &LReq,
-                        region_pos: f64, region_size: f64, region_ref: Option<f64>,
-                        space_between: f64, ref_point_index: Option<usize>) {
+                        region_req: &LReq, region_pos: f64, region_size: f64,
+                        region_ref: Option<f64>, space_between: f64,
+                        ref_point_index: Option<usize>) {
         let n = child_reqs.len();
         assert_eq!(n, child_allocs.len());
 
@@ -271,7 +270,7 @@ impl LAlloc {
                 // NO REFERENCE POINTS
                 match region_req.flex() {
                     &LFlex::Fixed => {
-                        LAlloc::_alloc_children_linear(n, child_reqs, child_allocs, region_pos,
+                        LAlloc::_alloc_children_linear_fixed(n, child_reqs, child_allocs, region_pos,
                             space_between);
                     },
                     &LFlex::Flex{..} => {
@@ -301,7 +300,7 @@ impl LAlloc {
                         // aligned with that of the correct child, this should be fine...
                         let before_offset = fast_max(
                             region_before_ref - region_req.size().before_ref(), 0.0);
-                        LAlloc::_alloc_children_linear(n, &child_reqs[..],
+                        LAlloc::_alloc_children_linear_fixed(n, &child_reqs[..],
                             &mut child_allocs[..],
                             before_offset + region_pos, space_between);
                     },
@@ -313,17 +312,21 @@ impl LAlloc {
 
                         // Before reference point index
                         let (shrink_before_ref, stretch_before_ref, nat_size_before_ref,
-                                    min_size_before_ref, region_size_before_ref) = {
+                                    min_size_before_ref, region_size_before_ref,
+                                    spill_before_ref) = {
                             let reqs = &child_reqs[..ref_point_n];
 
                             let shrink = reqs.iter().fold(0.0, |acc, x| acc + x.flex().shrink()) + ref_n_shrink * 0.5;
-                            let stretch = reqs.iter().fold(0.0, |acc, x| acc + x.flex().stretch()) + ref_n_stretch * 0.5;;
+                            let stretch = reqs.iter().fold(0.0, |acc, x| acc + x.flex().stretch()) + ref_n_stretch * 0.5;
 
                             let natural_size = region_req.size().before_ref();
                             let minimum_size = natural_size - shrink;
-                            let avail_size = region_before_ref - req_at_ref_n.size().before_ref() - space_between;
+                            let avail_size = region_before_ref;
+                            // The spill is the additional space required to reach the minimum
+                            // required size.
+                            let spill = fast_max(minimum_size - avail_size, 0.0);
 
-                            (shrink, stretch, natural_size, minimum_size, avail_size)
+                            (shrink, stretch, natural_size, minimum_size, avail_size, spill)
                         };
 
                         // After reference point index
@@ -332,44 +335,78 @@ impl LAlloc {
                             let reqs = &child_reqs[ref_point_n+1..];
 
                             let shrink = reqs.iter().fold(0.0, |acc, x| acc + x.flex().shrink()) + ref_n_shrink * 0.5;
-                            let stretch = reqs.iter().fold(0.0, |acc, x| acc + x.flex().stretch()) + ref_n_stretch * 0.5;;
+                            let stretch = reqs.iter().fold(0.0, |acc, x| acc + x.flex().stretch()) + ref_n_stretch * 0.5;
 
                             let natural_size = region_req.size().after_ref();
                             let minimum_size = natural_size - shrink;
-                            let avail_size = (region_size - region_before_ref) - req_at_ref_n.size().after_ref() - space_between;
+                            // take into account any spill over from before the ref point
+                            let avail_size = region_size - region_before_ref - spill_before_ref;
 
-                            (shrink, stretch, natural_size, minimum_size, region_size)
+                            (shrink, stretch, natural_size, minimum_size, avail_size)
                         };
 
-                        // Detect the case where the available space before the ref point
-                        // is less than the minimumn space before the ref point
-                        if region_size_before_ref < min_size_before_ref * ONE_MINUS_EPSILON {
-                            let before_ref_overflow = min_size_before_ref - region_size_before_ref;
+                        let mut pos = region_pos;
+                        // Allocate children before ref point
+                        pos = LAlloc::_alloc_children(n, &child_reqs[..ref_point_n],
+                                                &mut child_allocs[..ref_point_n],
+                                                nat_size_before_ref, min_size_before_ref,
+                                                pos, region_size_before_ref,
+                                                stretch_before_ref,
+                                                space_between, true);
 
-                        }
+                        // Allocate child aligned with ref point
+                        // Before reference point: compute flex factors and apply
+                        let mut ref_child_before_ref = req_at_ref_n.size().before_ref();
+                        match LAlloc::_compute_flex_factors(region_size_before_ref,
+                                min_size_before_ref, nat_size_before_ref, stretch_before_ref) {
+                            Some((shrink_frac, stretch_factor)) => {
+                                ref_child_before_ref = ref_child_before_ref -
+                                    req_at_ref_n.flex().shrink() * shrink_frac * 0.5 +
+                                    req_at_ref_n.flex().stretch() as f64 * stretch_factor * 0.5;
+                            },
+                            None => {},
+                        };
 
-                        // let mut pos = region_pos;
-                        // pos = LAlloc::_alloc_children(n, req_before_ref_n,
-                        //     allocs_before_ref_n,
-                        //     natural_size, minimum_size, pos, region_size,
-                        //     stretch, space_between);
+                        // After reference point: compute flex factors and apply
+                        let mut ref_child_after_ref = req_at_ref_n.size().after_ref();
+                        match LAlloc::_compute_flex_factors(region_size_after_ref,
+                                min_size_after_ref, nat_size_after_ref, stretch_after_ref) {
+                            Some((shrink_frac, stretch_factor)) => {
+                                ref_child_after_ref = ref_child_after_ref -
+                                    req_at_ref_n.flex().shrink() * shrink_frac * 0.5 +
+                                    req_at_ref_n.flex().stretch() as f64 * stretch_factor * 0.5;
+                            },
+                            None => {},
+                        };
 
-                        panic!("Not implemented");
+                        // Get the total size
+                        let ref_child_sz = ref_child_before_ref + ref_child_after_ref;
+                        // Allocate the ref child
+                        child_allocs[ref_point_n].alloc_from_region(req_at_ref_n,
+                            pos, ref_child_after_ref, Some(ref_child_before_ref));
+                        // Advance position
+                        pos = pos + ref_child_sz + space_between;
+
+                        // Allocate children after reference point
+                        LAlloc::_alloc_children(n, &child_reqs[ref_point_n+1..],
+                                                &mut child_allocs[ref_point_n+1..],
+                                                nat_size_after_ref, min_size_after_ref,
+                                                pos, region_size_after_ref,
+                                                stretch_after_ref,
+                                                space_between, false);
                     },
                 }
             },
 
             // EMPTY PARENT REQUISITIONS
             (_, &LNatSize::Empty, None) => {
-                // Ensure children are all empty
+                // Ensure children are all empty, otherwise we have a bug. Nothing else to do.
                 for (i, ch) in child_reqs.iter().enumerate() {
                     if ch.size() != &LNatSize::Empty {
                         panic!("Empty parent requisition, non-empty child requisiton at \
                                index {}", i);
                     }
                 }
-
-                // Nothing to do
             },
 
             (_, &LNatSize::Empty, _) => {
