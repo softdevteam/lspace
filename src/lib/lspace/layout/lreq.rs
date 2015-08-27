@@ -413,6 +413,15 @@ impl LFlex {
         }
     }
 
+    /// Scale
+    pub fn scale(&self, scale: f32) -> LFlex {
+        match self {
+            &LFlex::Fixed => *self,
+            &LFlex::Flex{shrink: i, stretch: e} => LFlex::Flex{shrink: i * scale as f64,
+                                                               stretch: e * scale},
+        }
+    }
+
     /// Private helper: get the minimum space requirement of the given `LNatSize`
     fn min_size(&self, sz: &LNatSize) -> Option<f64> {
         match (self, sz) {
