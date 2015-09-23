@@ -1,5 +1,6 @@
 use layout::lreq::{LReq};
 use layout::lalloc::{LAlloc};
+use layout::lbox::{LBox};
 
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -181,6 +182,31 @@ pub fn alloc_y(box_y_req: &LReq, box_y_alloc: &LAlloc, child_y_reqs: &[&LReq],
 }
 
 
+pub fn requisition_x_boxes<'a>(children: &'a mut [&'a mut LBox], x_spacing: f64,
+                               indentation: FlowIndent) -> LReq {
+    return requisition_x(&LBox::x_reqs(children), x_spacing, indentation);
+}
+
+pub fn alloc_x_boxes<'a>(layout_box: &LBox, children: &'a mut [&'a mut LBox], x_spacing: f64,
+                         indentation: FlowIndent) -> Vec<FlowLine> {
+    let (child_reqs, mut child_allocs) = LBox::x_reqs_and_mut_allocs(children);
+    return alloc_x(&layout_box.x_req, &layout_box.x_alloc, &child_reqs, &mut child_allocs,
+                   x_spacing, indentation);
+}
+
+pub fn requisition_y_boxes<'a>(children: &'a mut [&'a mut LBox], y_spacing: f64,
+                               lines: &mut Vec<FlowLine>) -> LReq {
+    return requisition_y(&LBox::y_reqs(children), y_spacing, lines);
+}
+
+pub fn alloc_y_boxes<'a>(layout_box: &LBox, children: &'a mut [&'a mut LBox], y_spacing: f64,
+                         lines: &mut Vec<FlowLine>) {
+    let (child_reqs, mut child_allocs) = LBox::y_reqs_and_mut_allocs(children);
+    alloc_y(&layout_box.y_req, &layout_box.y_alloc, &child_reqs, &mut child_allocs, y_spacing,
+            lines);
+}
+
+
 
 #[cfg(test)]
 mod tests {
@@ -193,6 +219,7 @@ mod tests {
 
     use layout::lreq::{LNatSize, LFlex, LReq};
     use layout::lalloc::{LAlloc};
+    use layout::lbox::{LBox};
 
 
     fn f_layout(x_reqs: &Vec<&LReq>, y_reqs: &Vec<&LReq>, x_spacing: f64,
@@ -425,14 +452,8 @@ mod tests {
         let flex_range = Range::new(1.0, 3.0);
         let mut rng = rand::thread_rng();
 
-        let mut child_x_reqs = Vec::with_capacity(num_children);
-        let mut child_y_reqs = Vec::with_capacity(num_children);
-        let mut child_x_allocs = Vec::with_capacity(num_children);
-        let mut child_y_allocs = Vec::with_capacity(num_children);
-        let mut parent_x_reqs = Vec::with_capacity(num_parents);
-        let mut parent_y_reqs = Vec::with_capacity(num_parents);
-        let mut parent_x_allocs = Vec::with_capacity(num_parents);
-        let mut parent_y_allocs = Vec::with_capacity(num_parents);
+        let mut children = Vec::with_capacity(num_children);
+        let mut parents = Vec::with_capacity(num_parents);
 
         for _ in 0..num_children {
             let size_x = LNatSize::new_size(size_range.ind_sample(&mut rng));
@@ -445,37 +466,30 @@ mod tests {
                 _ => {panic!();},
             };
             let flex_y = LFlex::new_fixed();
-            child_x_reqs.push(LReq::new(size_x, flex_x));
-            child_y_reqs.push(LReq::new(size_y, flex_y));
-            child_x_allocs.push(LAlloc::new_empty());
-            child_y_allocs.push(LAlloc::new_empty());
+            children.push(LBox::new(LReq::new(size_x, flex_x), LReq::new(size_y, flex_y)))
         }
 
-        let child_x_req_refs: Vec<&LReq> = child_x_reqs.iter().collect();
-        let child_y_req_refs: Vec<&LReq> = child_y_reqs.iter().collect();
-        let mut child_x_alloc_refs : Vec<&mut LAlloc> = child_x_allocs.iter_mut().collect();
-        let mut child_y_alloc_refs : Vec<&mut LAlloc> = child_y_allocs.iter_mut().collect();
+        let mut child_refs : Vec<&mut LBox> = children.iter_mut().collect();
+        let (child_x_req_refs, mut child_x_alloc_refs,
+             child_y_req_refs, mut child_y_alloc_refs) = LBox::reqs_and_mut_allocs(&mut child_refs);
 
         for _ in 0..num_parents {
-            parent_x_reqs.push(LReq::new_empty());
-            parent_y_reqs.push(LReq::new_empty());
-            parent_x_allocs.push(LAlloc::new_empty());
-            parent_y_allocs.push(LAlloc::new_empty());
+            parents.push(LBox::new_empty());
         }
 
         bench.iter(|| {
             for _ in 0..num_repeats {
                 for i in 0..num_parents {
-                    parent_x_reqs[i] = requisition_x(&child_x_req_refs, 0.0, FlowIndent::NoIndent);
-                    parent_x_allocs[i] = LAlloc::new(0.0, 500.0, 500.0);
+                    parents[i].x_req = requisition_x(&child_x_req_refs, 0.0, FlowIndent::NoIndent);
+                    parents[i].x_alloc = LAlloc::new(0.0, 500.0, 500.0);
 
-                    let mut lines = alloc_x(&parent_x_reqs[i], &parent_x_allocs[i],
+                    let mut lines = alloc_x(&parents[i].x_req, &parents[i].x_alloc,
                             &child_x_req_refs, &mut child_x_alloc_refs, 0.0, FlowIndent::NoIndent);
 
-                    parent_y_reqs[i] = requisition_y(&child_y_req_refs, 0.0, &mut lines);
-                    parent_y_allocs[i] = LAlloc::new_from_req(&parent_y_reqs[i], 0.0);
+                    parents[i].y_req = requisition_y(&child_y_req_refs, 0.0, &mut lines);
+                    parents[i].y_alloc = LAlloc::new_from_req(&parents[i].y_req, 0.0);
 
-                    alloc_y(&parent_y_reqs[i], &parent_y_allocs[i],
+                    alloc_y(&parents[i].y_req, &parents[i].y_alloc,
                             &child_y_req_refs, &mut child_y_alloc_refs, 0.0,
                             &mut lines);
                 }
