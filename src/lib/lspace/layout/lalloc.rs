@@ -417,6 +417,12 @@ impl LAlloc {
                         }};
     }
 
+    /// Copy without position
+    pub fn without_position(&self) -> LAlloc {
+        return LAlloc{pos_in_parent: 0.0, alloc_size: self.alloc_size,
+                      actual_size: self.actual_size, ref_point: self.ref_point};
+    }
+
     /// Allocate this element - a child element - space in the specified region that would be
     /// contained within the space of a parent element.
     ///
@@ -865,6 +871,14 @@ mod tests {
                    LAlloc::new(2.0, 6.0, 8.0));
         assert_eq!(LAlloc::new_ref(0.0, 8.0, 10.0, 4.0).indent(2.0),
                    LAlloc::new_ref(2.0, 6.0, 8.0, 2.0));
+    }
+
+    #[test]
+    fn test_lalloc_without_position() {
+        assert_eq!(LAlloc::new(100.0, 8.0, 10.0).without_position(),
+                   LAlloc::new(0.0, 8.0, 10.0));
+        assert_eq!(LAlloc::new_ref(100.0, 8.0, 10.0, 4.0).without_position(),
+                   LAlloc::new_ref(0.0, 8.0, 10.0, 4.0));
     }
 
     fn _alloc_region(req: &LReq, region_pos: f64, region_size: f64) -> LAlloc {
