@@ -27,13 +27,14 @@ pub struct LAlloc {
 /// Returns:
 /// The position of a subsequent child
 fn alloc_children_linear_fixed(n: usize,
-                               child_reqs: &[&LReq], child_allocs: &mut [&mut LAlloc],
+                               child_reqs_and_allocs: &mut [(&LReq, &mut LAlloc)],
                                start_pos: f64, space_between: f64) -> f64 {
     let mut pos = start_pos;
     for i in 0..n {
-        let creq = child_reqs[i];
+        let creq = child_reqs_and_allocs[i].0;
+        let mut calloc: &mut LAlloc = child_reqs_and_allocs[i].1;
         let csz = creq.size().size();
-        child_allocs[i].alloc_from_region(creq, pos, csz, creq.size().before_ref_opt());
+        calloc.alloc_from_region(creq, pos, csz, creq.size().before_ref_opt());
         pos = pos + csz + space_between;
     }
     return pos;
@@ -56,12 +57,13 @@ fn alloc_children_linear_fixed(n: usize,
 /// Returns:
 /// The position of a subsequent child
 fn alloc_children_linear_flex(n: usize,
-                              child_reqs: &[&LReq], child_allocs: &mut [&mut LAlloc],
+                              child_reqs_and_allocs: &mut [(&LReq, &mut LAlloc)],
                               start_pos: f64, space_between: f64,
                               shrink_frac: f64, stretch_factor: f64) -> f64 {
     let mut pos = start_pos;
     for i in 0..n {
-        let creq = child_reqs[i];
+        let creq = child_reqs_and_allocs[i].0;
+        let mut calloc: &mut LAlloc = child_reqs_and_allocs[i].1;
         let cshrink = creq.flex().shrink() * shrink_frac;
         let cstretch = (creq.flex().stretch() as f64) * stretch_factor;
 
@@ -72,7 +74,7 @@ fn alloc_children_linear_flex(n: usize,
             Some(before_ref) => Some(before_ref + (cstretch - cshrink) * before_ref / sz),
         };
 
-        child_allocs[i].alloc_from_region(creq, pos, csz, cref);
+        calloc.alloc_from_region(creq, pos, csz, cref);
         pos = pos + csz + space_between;
     }
     return pos;
@@ -124,7 +126,7 @@ fn compute_flex_factors(region_size: f64, minimum_size: f64, natural_size: f64,
 
 /// Allocation helper function
 /// Allocate child elements in a linear fashion
-fn alloc_children_linear(n: usize, child_reqs: &[&LReq], child_allocs: &mut [&mut LAlloc],
+fn alloc_children_linear(n: usize, child_reqs_and_allocs: &mut [(&LReq, &mut LAlloc)],
                   natural_size: f64, minimum_size: f64, region_pos: f64, region_size: f64,
                   region_stretch: f32, space_between: f64, pad_start: bool) -> f64 {
     match compute_flex_factors(region_size, minimum_size, natural_size, region_stretch) {
@@ -137,7 +139,7 @@ fn alloc_children_linear(n: usize, child_reqs: &[&LReq], child_allocs: &mut [&mu
             } else {
                 region_pos
             };
-            alloc_children_linear_flex(n, child_reqs, child_allocs, start, space_between,
+            alloc_children_linear_flex(n, child_reqs_and_allocs, start, space_between,
                                        shrink_frac, stretch_frac)
         },
 
@@ -148,28 +150,26 @@ fn alloc_children_linear(n: usize, child_reqs: &[&LReq], child_allocs: &mut [&mu
             } else {
                 region_pos
             };
-            alloc_children_linear_fixed(n, child_reqs, child_allocs, start, space_between)
+            alloc_children_linear_fixed(n, child_reqs_and_allocs, start, space_between)
         }
     }
 }
 
 /// Allocation helper function
 /// Allocate child elements in a linear fashion, region has NO reference point
-fn alloc_children_linear_no_ref(n: usize, child_reqs: &[&LReq],
-                                child_allocs: &mut [&mut LAlloc],
+fn alloc_children_linear_no_ref(n: usize, child_reqs_and_allocs: &mut [(&LReq, &mut LAlloc)],
                                 region_req: &LReq, region_pos: f64, region_size: f64,
                                 space_between: f64) {
     match region_req.flex() {
         &LFlex::Fixed => {
-            alloc_children_linear_fixed(n, child_reqs, child_allocs, region_pos,
+            alloc_children_linear_fixed(n, child_reqs_and_allocs, region_pos,
                                         space_between);
         },
         &LFlex::Flex{..} => {
             let natural_size = region_req.size().size();
             let minimum_size = natural_size - region_req.flex().shrink();
 
-            alloc_children_linear(n, &child_reqs[..],
-                                  &mut child_allocs[..],
+            alloc_children_linear(n, child_reqs_and_allocs,
                                   natural_size, minimum_size,
                                   region_pos, region_size,
                                   region_req.flex().stretch(),
@@ -180,8 +180,7 @@ fn alloc_children_linear_no_ref(n: usize, child_reqs: &[&LReq],
 
 /// Allocation helper function
 /// Allocate child elements in a linear fashion, region has reference point
-fn alloc_children_linear_with_ref(n: usize, child_reqs: &[&LReq],
-                                  child_allocs: &mut [&mut LAlloc],
+fn alloc_children_linear_with_ref(n: usize, child_reqs_and_allocs: &mut [(&LReq, &mut LAlloc)],
                                   region_req: &LReq, region_pos: f64, region_size: f64,
                                   region_before_ref: f64, space_between: f64,
                                   ref_point_n: usize) {
@@ -192,11 +191,11 @@ fn alloc_children_linear_with_ref(n: usize, child_reqs: &[&LReq],
             // Assuming that the region requisition has its reference point
             // aligned with that of the correct child, this should be fine...
             let before_offset = fast_max(region_before_ref - region_req.size().before_ref(), 0.0);
-            alloc_children_linear_fixed(n, &child_reqs[..], &mut child_allocs[..],
+            alloc_children_linear_fixed(n, child_reqs_and_allocs,
                                         before_offset + region_pos, space_between);
         },
         &LFlex::Flex{..} => {
-            let req_at_ref_n = child_reqs[ref_point_n];
+            let req_at_ref_n = child_reqs_and_allocs[ref_point_n].0;
 
             let ref_child_shrink = req_at_ref_n.flex().shrink();
             let ref_child_stretch = req_at_ref_n.flex().stretch();
@@ -214,13 +213,13 @@ fn alloc_children_linear_with_ref(n: usize, child_reqs: &[&LReq],
                     (ref_child_shrink * ref_child_before_ref_frac,
                      ref_child_stretch * ref_child_before_ref_frac as f32)
                 } else {
-                    let reqs = &child_reqs[..ref_point_n];
+                    let reqs_and_allocs = &mut child_reqs_and_allocs[..ref_point_n];
 
-                    let shrink = reqs.iter().fold(0.0,
-                            |acc, x| acc + x.flex().shrink()) +
+                    let shrink = reqs_and_allocs.iter().fold(0.0,
+                            |acc, x| acc + x.0.flex().shrink()) +
                                 ref_child_shrink * ref_child_before_ref_frac;
-                    let stretch = reqs.iter().fold(0.0,
-                            |acc, x| acc + x.flex().stretch()) +
+                    let stretch = reqs_and_allocs.iter().fold(0.0,
+                            |acc, x| acc + x.0.flex().stretch()) +
                                 ref_child_stretch * ref_child_before_ref_frac as f32;
 
                     (shrink, stretch)
@@ -243,13 +242,13 @@ fn alloc_children_linear_with_ref(n: usize, child_reqs: &[&LReq],
                     (ref_child_shrink * ref_child_after_ref_frac,
                      ref_child_stretch * ref_child_after_ref_frac as f32)
                 } else {
-                    let reqs = &child_reqs[ref_point_n+1..];
+                    let reqs_and_allocs = &child_reqs_and_allocs[ref_point_n+1..];
 
-                    let shrink = reqs.iter().fold(0.0,
-                            |acc, x| acc + x.flex().shrink()) +
+                    let shrink = reqs_and_allocs.iter().fold(0.0,
+                            |acc, x| acc + x.0.flex().shrink()) +
                                 ref_child_shrink * ref_child_after_ref_frac;
-                    let stretch = reqs.iter().fold(0.0,
-                            |acc, x| acc + x.flex().stretch()) +
+                    let stretch = reqs_and_allocs.iter().fold(0.0,
+                            |acc, x| acc + x.0.flex().stretch()) +
                                 ref_child_stretch * ref_child_after_ref_frac as f32;
 
                     (shrink, stretch)
@@ -268,8 +267,8 @@ fn alloc_children_linear_with_ref(n: usize, child_reqs: &[&LReq],
 
             // Allocate children before ref point
             if ref_point_n > 0 {
-                pos = alloc_children_linear(ref_point_n, &child_reqs[..ref_point_n],
-                                            &mut child_allocs[..ref_point_n],
+                pos = alloc_children_linear(ref_point_n,
+                                            &mut child_reqs_and_allocs[..ref_point_n],
                                             nat_size_before_ref, min_size_before_ref,
                                             pos, region_size_before_ref,
                                             stretch_before_ref,
@@ -311,14 +310,14 @@ fn alloc_children_linear_with_ref(n: usize, child_reqs: &[&LReq],
                 pos = region_pos + region_before_ref - ref_child_before_ref;
             }
             // Allocate the child aligned with ref point
-            child_allocs[ref_point_n].alloc_from_region(req_at_ref_n,
+            child_reqs_and_allocs[ref_point_n].1.alloc_from_region(req_at_ref_n,
                 pos, ref_child_sz, Some(ref_child_before_ref));
             // Advance position
             pos = pos + ref_child_sz + space_between;
 
             // Allocate children after reference point
-            alloc_children_linear(n - (ref_point_n + 1), &child_reqs[ref_point_n+1..],
-                                  &mut child_allocs[ref_point_n+1..],
+            alloc_children_linear(n - (ref_point_n + 1),
+                                  &mut child_reqs_and_allocs[ref_point_n+1..],
                                   nat_size_after_ref, min_size_after_ref,
                                   pos, region_size_after_ref,
                                   stretch_after_ref,
@@ -509,18 +508,17 @@ impl LAlloc {
     /// `space_between` : the amount of space to insert between child elements
     /// `ref_point_index` : an optional index that identifies a child element that is to have its
     /// reference point aligned with that of the region
-    pub fn alloc_linear(child_reqs: &[&LReq], child_allocs: &mut [&mut LAlloc],
+    pub fn alloc_linear(child_reqs_and_allocs: &mut [(&LReq, &mut LAlloc)],
                         region_req: &LReq, region_pos: f64, region_size: f64,
                         region_ref: Option<f64>, space_between: f64,
                         ref_point_index: Option<usize>) {
-        let n = child_reqs.len();
-        debug_assert!(n == child_allocs.len());
+        let n = child_reqs_and_allocs.len();
 
         // There are a few valid, consistent configurations that are identified and handled
         match (ref_point_index, region_req.size(), region_ref) {
             (None, &LNatSize::Size{..}, None) => {
                 // NO REFERENCE POINTS
-                alloc_children_linear_no_ref(n, child_reqs, child_allocs, region_req, region_pos,
+                alloc_children_linear_no_ref(n, child_reqs_and_allocs, region_req, region_pos,
                                              region_size, space_between);
             },
 
@@ -530,7 +528,7 @@ impl LAlloc {
                 // REQUISITION HAS REF POINT
                 // REGION HAS REF POINT
 
-                alloc_children_linear_with_ref(n, child_reqs, child_allocs, region_req,
+                alloc_children_linear_with_ref(n, child_reqs_and_allocs, region_req,
                                                region_pos, region_size, region_before_ref,
                                                space_between, ref_point_n);
             },
@@ -538,8 +536,8 @@ impl LAlloc {
             // EMPTY PARENT REQUISITIONS
             (_, &LNatSize::Empty, None) => {
                 // Ensure children are all empty, otherwise we have a bug. Nothing else to do.
-                for (i, ch) in child_reqs.iter().enumerate() {
-                    if ch.size() != &LNatSize::Empty {
+                for (i, ch) in child_reqs_and_allocs.iter().enumerate() {
+                    if ch.0.size() != &LNatSize::Empty {
                         panic!("Empty parent requisition, non-empty child requisiton at \
                                index {}", i);
                     }
@@ -610,8 +608,12 @@ mod tests {
         let mut child_allocs : Vec<LAlloc> = child_reqs.iter().map(|_| LAlloc::new_empty()).collect();
 
         {
-            let mut child_alloc_refs : Vec<&mut LAlloc> = child_allocs.iter_mut().collect();
-            LAlloc::alloc_linear(child_reqs, &mut child_alloc_refs, &region_req,
+
+            let mut child_reqs_and_allocs: Vec<(&LReq, &mut LAlloc)> = Vec::with_capacity(child_reqs.len());
+            for (r, mut a) in child_reqs.iter().zip(child_allocs.iter_mut()) {
+                child_reqs_and_allocs.push((r, a));
+            }
+            LAlloc::alloc_linear(&mut child_reqs_and_allocs, &region_req,
                                  region_pos, region_size, region_ref, space_between,
                                  ref_point_index);
         }
@@ -2034,7 +2036,11 @@ mod tests {
         }
 
         let child_req_refs: Vec<&LReq> = child_reqs.iter().collect();
-        let mut child_alloc_refs : Vec<&mut LAlloc> = child_allocs.iter_mut().collect();
+        // let mut child_alloc_refs : Vec<&mut LAlloc> = child_allocs.iter_mut().collect();
+        let mut child_req_and_alloc_refs: Vec<(&LReq, &mut LAlloc)> = Vec::with_capacity(child_reqs.len());
+        for (r, mut a) in child_reqs.iter().zip(child_allocs.iter_mut()) {
+            child_req_and_alloc_refs.push((r, a));
+        }
 
         parent_reqs.clear();
         for _ in 0..num_parents {
@@ -2045,7 +2051,7 @@ mod tests {
         bench.iter(|| {
             for i in 0..num_parents {
                 let parent = &parent_reqs[i];
-                LAlloc::alloc_linear(&child_req_refs, &mut child_alloc_refs, parent,
+                LAlloc::alloc_linear(&mut child_req_and_alloc_refs, parent,
                                      0.0, parent.size().size(), None, 0.0,
                                      None);
             }

@@ -31,51 +31,31 @@ impl LBox {
         return boxes.iter().map(|b| &b.y_req).collect();
     }
 
-    pub fn x_reqs_and_mut_allocs<'a>(boxes: &'a mut [&'a mut LBox]) -> (Vec<&'a LReq>, Vec<&'a mut LAlloc>) {
-        let n = boxes.len();
-        let mut allocs_and_reqs = boxes.iter_mut().map(|b| (&mut b.x_alloc, &b.x_req));
-        let mut allocs : Vec<&mut LAlloc> = Vec::with_capacity(n);
-        let mut reqs : Vec<&LReq> = Vec::with_capacity(n);
-
-        for (mut alloc, req) in allocs_and_reqs {
-            allocs.push(alloc);
-            reqs.push(req);
-        }
-
-        return (reqs, allocs);
+    pub fn x_reqs_and_mut_allocs<'a>(boxes: &'a mut [&'a mut LBox]) -> Vec<(&'a LReq, &'a mut LAlloc)> {
+        return boxes.iter_mut().map(|b| (&b.x_req, &mut b.x_alloc)).collect();
     }
 
-    pub fn y_reqs_and_mut_allocs<'a>(boxes: &'a mut [&'a mut LBox]) -> (Vec<&'a LReq>, Vec<&'a mut LAlloc>) {
-        let n = boxes.len();
-        let mut allocs_and_reqs = boxes.iter_mut().map(|b| (&mut b.y_alloc, &b.y_req));
-        let mut allocs : Vec<&mut LAlloc> = Vec::with_capacity(n);
-        let mut reqs : Vec<&LReq> = Vec::with_capacity(n);
-
-        for (mut alloc, req) in allocs_and_reqs {
-            allocs.push(alloc);
-            reqs.push(req);
-        }
-
-        return (reqs, allocs);
+    pub fn y_reqs_and_mut_allocs<'a>(boxes: &'a mut [&'a mut LBox]) -> Vec<(&'a LReq, &'a mut LAlloc)> {
+        return boxes.iter_mut().map(|b| (&b.y_req, &mut b.y_alloc)).collect();
     }
 
     pub fn reqs_and_mut_allocs<'a>(boxes: &'a mut [&'a mut LBox]) ->
-                (Vec<&'a LReq>, Vec<&'a mut LAlloc>, Vec<&'a LReq>, Vec<&'a mut LAlloc>) {
+                (Vec<&'a LReq>, Vec<(&'a LReq, &'a mut LAlloc)>, Vec<&'a LReq>, Vec<(&'a LReq, &'a mut LAlloc)>) {
         let n = boxes.len();
         let mut everything = boxes.iter_mut().map(|b| (&mut b.x_alloc, &b.x_req, &mut b.y_alloc, &b.y_req));
-        let mut x_allocs : Vec<&mut LAlloc> = Vec::with_capacity(n);
         let mut x_reqs : Vec<&LReq> = Vec::with_capacity(n);
-        let mut y_allocs : Vec<&mut LAlloc> = Vec::with_capacity(n);
         let mut y_reqs : Vec<&LReq> = Vec::with_capacity(n);
+        let mut x_reqs_and_allocs : Vec<(&LReq, &mut LAlloc)> = Vec::with_capacity(n);
+        let mut y_reqs_and_allocs : Vec<(&LReq, &mut LAlloc)> = Vec::with_capacity(n);
 
-        for (mut x_alloc, x_req, y_alloc, y_req) in everything {
-            x_allocs.push(x_alloc);
+        for (mut x_alloc, x_req, mut y_alloc, y_req) in everything {
             x_reqs.push(x_req);
-            y_allocs.push(y_alloc);
             y_reqs.push(y_req);
+            x_reqs_and_allocs.push((x_req, x_alloc));
+            y_reqs_and_allocs.push((y_req, y_alloc));
         }
 
-        return (x_reqs, x_allocs, y_reqs, y_allocs);
+        return (x_reqs, x_reqs_and_allocs, y_reqs, y_reqs_and_allocs);
     }
 
 }
