@@ -88,41 +88,41 @@ pub fn alloc_x(box_x_req: &LReq, box_x_alloc: &LAlloc,
         return vec![line];
     } else {
         let n = child_reqs_and_allocs.len();
-        let mut x = 0.0;
         let mut lines : Vec<FlowLine> = Vec::new();
         let mut line_i_0 = 0;
-        let mut line_x = 0.0;
+        let mut line_x = match indentation {
+            FlowIndent::First{indent} => indent,
+            _ => 0.0
+        };
+        let mut x = line_x;
         let mut n_lines = 0;
 
         for i in 0..n {
-            if x > box_x_alloc.alloc_size() || i == 0 {
-                if i > 0 {
-                    let line_alloc = box_x_alloc.indent(line_x);
-                    // Record the existing line
-                    lines.push(FlowLine::new_x(line_x, line_i_0, i));
-                    LAlloc::alloc_linear(&mut child_reqs_and_allocs[line_i_0..i],
-                                         &box_x_req.dedent(line_x), line_alloc.pos_in_parent(),
-                                         line_alloc.alloc_size(), line_alloc.ref_point(),
-                                         x_spacing, None);
-                }
+            if i > line_i_0 {
+                // Not the first element in the line
+                x = x + x_spacing;
+            }
+            let child_w = child_reqs_and_allocs[i].0.size().size();
+            x = x + child_w;
+
+            if x > box_x_alloc.alloc_size() && i > line_i_0 {
+                let line_alloc = box_x_alloc.indent(line_x);
+                // Record the existing line
+                lines.push(FlowLine::new_x(line_x, line_i_0, i));
+                LAlloc::alloc_linear(&mut child_reqs_and_allocs[line_i_0..i],
+                                     &box_x_req.dedent(line_x), line_alloc.pos_in_parent(),
+                                     line_alloc.alloc_size(), line_alloc.ref_point(),
+                                     x_spacing, None);
+                n_lines = n_lines + 1;
 
                 // Start a new line
                 line_i_0 = i;
                 line_x = match indentation {
-                    FlowIndent::First{indent} if n_lines == 0 => indent,
-                    FlowIndent::ExceptFirst{indent} if n_lines != 0 => indent,
+                    FlowIndent::ExceptFirst{indent} => indent,
                     _ => 0.0
                 };
-                n_lines = n_lines + 1;
-
-                x = line_x;
+                x = line_x + child_w;
             }
-
-            if i > line_i_0 {
-                // Not the first elmenet in the line
-                x = x + x_spacing;
-            }
-            x = x + child_reqs_and_allocs[i].0.size().size();
         }
 
         {
@@ -300,13 +300,13 @@ mod tests {
             assert_eq!(box_x_req, LReq::new_flex_size(1000.0, 990.0, 0.0));
             assert_eq!(box_y_req, LReq::new_fixed_size(22.0));
 
-            for i in 0..51 {
+            for i in 0..50 {
                 assert_eq!(x_allocs[i], LAlloc::new((i*10) as f64, 10.0, 10.0));
                 assert_eq!(y_allocs[i], LAlloc::new_ref((1-i%2) as f64, 10.0, 10.0,
                                                         6.0+(i%2) as f64));
             }
-            for i in 51..n {
-                assert_eq!(x_allocs[i], LAlloc::new(((i-51)*10) as f64, 10.0, 10.0));
+            for i in 50..n {
+                assert_eq!(x_allocs[i], LAlloc::new(((i-50)*10) as f64, 10.0, 10.0));
                 assert_eq!(y_allocs[i], LAlloc::new_ref(11.0+(1-i%2) as f64, 10.0, 10.0,
                                                         6.0+(i%2) as f64));
             }
@@ -326,23 +326,23 @@ mod tests {
             assert_eq!(box_x_req, LReq::new_flex_size(1000.0, 990.0, 0.0));
             assert_eq!(box_y_req, LReq::new_fixed_size(44.0));
 
-            for i in 0..26 {
+            for i in 0..25 {
                 assert_eq!(x_allocs[i], LAlloc::new((i*10) as f64, 10.0, 10.0));
                 assert_eq!(y_allocs[i], LAlloc::new_ref((1-i%2) as f64, 10.0, 10.0,
                                                         6.0+(i%2) as f64));
             }
-            for i in 26..52 {
-                assert_eq!(x_allocs[i], LAlloc::new(((i-26)*10) as f64, 10.0, 10.0));
+            for i in 25..50 {
+                assert_eq!(x_allocs[i], LAlloc::new(((i-25)*10) as f64, 10.0, 10.0));
                 assert_eq!(y_allocs[i], LAlloc::new_ref(11.0+(1-i%2) as f64, 10.0, 10.0,
                                                         6.0+(i%2) as f64));
             }
-            for i in 52..78 {
-                assert_eq!(x_allocs[i], LAlloc::new(((i-52)*10) as f64, 10.0, 10.0));
+            for i in 50..75 {
+                assert_eq!(x_allocs[i], LAlloc::new(((i-50)*10) as f64, 10.0, 10.0));
                 assert_eq!(y_allocs[i], LAlloc::new_ref(22.0+(1-i%2) as f64, 10.0, 10.0,
                                                         6.0+(i%2) as f64));
             }
-            for i in 78..n {
-                assert_eq!(x_allocs[i], LAlloc::new(((i-78)*10) as f64, 10.0, 10.0));
+            for i in 75..n {
+                assert_eq!(x_allocs[i], LAlloc::new(((i-75)*10) as f64, 10.0, 10.0));
                 assert_eq!(y_allocs[i], LAlloc::new_ref(33.0+(1-i%2) as f64, 10.0, 10.0,
                                                         6.0+(i%2) as f64));
             }
@@ -351,7 +351,7 @@ mod tests {
         {
             let (box_x_req, box_y_req, x_allocs, y_allocs, lines) = f_layout(
                 &x_req_refs, &y_req_refs,
-                0.0, 0.0, FlowIndent::First{indent:15.0}, 250.0);
+                0.0, 0.0, FlowIndent::First{indent:15.0}, 300.0);
 
             assert_eq!(lines.len(), 4);
             assert_eq!(lines[0].y_req, LReq::new_fixed_ref(7.0, 4.0));
@@ -362,23 +362,23 @@ mod tests {
             assert_eq!(box_x_req, LReq::new_flex_size(1015.0, 990.0, 0.0));
             assert_eq!(box_y_req, LReq::new_fixed_size(44.0));
 
-            for i in 0..24 {
+            for i in 0..28 {
                 assert_eq!(x_allocs[i], LAlloc::new(15.0+(i*10) as f64, 10.0, 10.0));
                 assert_eq!(y_allocs[i], LAlloc::new_ref((1-i%2) as f64, 10.0, 10.0,
                                                         6.0+(i%2) as f64));
             }
-            for i in 24..50 {
-                assert_eq!(x_allocs[i], LAlloc::new(((i-24)*10) as f64, 10.0, 10.0));
+            for i in 28..58 {
+                assert_eq!(x_allocs[i], LAlloc::new(((i-28)*10) as f64, 10.0, 10.0));
                 assert_eq!(y_allocs[i], LAlloc::new_ref(11.0+(1-i%2) as f64, 10.0, 10.0,
                                                         6.0+(i%2) as f64));
             }
-            for i in 50..76 {
-                assert_eq!(x_allocs[i], LAlloc::new(((i-50)*10) as f64, 10.0, 10.0));
+            for i in 58..88 {
+                assert_eq!(x_allocs[i], LAlloc::new(((i-58)*10) as f64, 10.0, 10.0));
                 assert_eq!(y_allocs[i], LAlloc::new_ref(22.0+(1-i%2) as f64, 10.0, 10.0,
                                                         6.0+(i%2) as f64));
             }
-            for i in 76..n {
-                assert_eq!(x_allocs[i], LAlloc::new(((i-76)*10) as f64, 10.0, 10.0));
+            for i in 88..n {
+                assert_eq!(x_allocs[i], LAlloc::new(((i-88)*10) as f64, 10.0, 10.0));
                 assert_eq!(y_allocs[i], LAlloc::new_ref(33.0+(1-i%2) as f64, 10.0, 10.0,
                                                         6.0+(i%2) as f64));
             }
@@ -398,23 +398,23 @@ mod tests {
             assert_eq!(box_x_req, LReq::new_flex_size(1000.0, 975.0, 0.0));
             assert_eq!(box_y_req, LReq::new_fixed_size(44.0));
 
-            for i in 0..31 {
+            for i in 0..30 {
                 assert_eq!(x_allocs[i], LAlloc::new((i*10) as f64, 10.0, 10.0));
                 assert_eq!(y_allocs[i], LAlloc::new_ref((1-i%2) as f64, 10.0, 10.0,
                                                         6.0+(i%2) as f64));
             }
-            for i in 31..60 {
-                assert_eq!(x_allocs[i], LAlloc::new(15.0+((i-31)*10) as f64, 10.0, 10.0));
+            for i in 30..58 {
+                assert_eq!(x_allocs[i], LAlloc::new(15.0+((i-30)*10) as f64, 10.0, 10.0));
                 assert_eq!(y_allocs[i], LAlloc::new_ref(11.0+(1-i%2) as f64, 10.0, 10.0,
                                                         6.0+(i%2) as f64));
             }
-            for i in 60..89 {
-                assert_eq!(x_allocs[i], LAlloc::new(15.0+((i-60)*10) as f64, 10.0, 10.0));
+            for i in 58..86 {
+                assert_eq!(x_allocs[i], LAlloc::new(15.0+((i-58)*10) as f64, 10.0, 10.0));
                 assert_eq!(y_allocs[i], LAlloc::new_ref(22.0+(1-i%2) as f64, 10.0, 10.0,
                                                         6.0+(i%2) as f64));
             }
-            for i in 89..n {
-                assert_eq!(x_allocs[i], LAlloc::new(15.0+((i-89)*10) as f64, 10.0, 10.0));
+            for i in 86..n {
+                assert_eq!(x_allocs[i], LAlloc::new(15.0+((i-86)*10) as f64, 10.0, 10.0));
                 assert_eq!(y_allocs[i], LAlloc::new_ref(33.0+(1-i%2) as f64, 10.0, 10.0,
                                                         6.0+(i%2) as f64));
             }

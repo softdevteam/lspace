@@ -1,4 +1,4 @@
-use layout::lreq::{LNatSize, LFlex, LReq, fast_max};
+use layout::lreq::{LNatSize, LFlex, LReq, fast_min, fast_max};
 
 pub const EPSILON : f64 = 1.0e-6;
 pub const ONE_MINUS_EPSILON : f64 = 1.0 - EPSILON;
@@ -351,6 +351,14 @@ impl LAlloc {
     pub fn new_from_req(req: &LReq, pos_in_parent: f64) -> LAlloc {
         let size = req.size().size();
         return LAlloc{pos_in_parent: pos_in_parent, alloc_size: size, actual_size: size,
+                      ref_point: req.size().before_ref_opt()};
+    }
+
+    /// Construct a `LAlloc` that has enough space for the given `LReq` requisition
+    pub fn new_from_req_in_avail_size(req: &LReq, pos_in_parent: f64, avail_size: f64) -> LAlloc {
+        let req_size = req.size().size();
+        let alloc_size = fast_min(req_size, avail_size);
+        return LAlloc{pos_in_parent: pos_in_parent, alloc_size: alloc_size, actual_size: req_size,
                       ref_point: req.size().before_ref_opt()};
     }
 
