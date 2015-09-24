@@ -7,12 +7,13 @@ pub fn requisition_x(child_x_reqs: &[&LReq]) -> LReq {
     return LReq::perpendicular_acc(child_x_reqs);
 }
 
-pub fn alloc_x(box_x_req: &LReq, box_x_alloc: &LAlloc, child_x_reqs: &[&LReq],
-               child_x_allocs: &mut [&mut LAlloc]) {
-    debug_assert!(child_x_reqs.len() == child_x_allocs.len());
-    for i in 0..child_x_reqs.len() {
-       child_x_allocs[i].alloc_from_region(child_x_reqs[i], box_x_alloc.pos_in_parent(),
-                                           box_x_alloc.alloc_size(), box_x_alloc.ref_point());
+pub fn alloc_x(box_x_req: &LReq, box_x_alloc: &LAlloc,
+               child_reqs_and_allocs: &mut [(&LReq, &mut LAlloc)]) {
+    for i in 0..child_reqs_and_allocs.len() {
+       child_reqs_and_allocs[i].1.alloc_from_region(child_reqs_and_allocs[i].0,
+                                                    box_x_alloc.pos_in_parent(),
+                                                    box_x_alloc.alloc_size(),
+                                                    box_x_alloc.ref_point());
     }
 }
 
@@ -21,34 +22,12 @@ pub fn requisition_y(child_y_reqs: &[&LReq], y_spacing: f64,
     return LReq::linear_acc(child_y_reqs, y_spacing, ref_point_index);
 }
 
-pub fn alloc_y(box_y_req: &LReq, box_y_alloc: &LAlloc, child_y_reqs: &[&LReq],
-               child_y_allocs: &mut [&mut LAlloc], y_spacing: f64,
+pub fn alloc_y(box_y_req: &LReq, box_y_alloc: &LAlloc,
+               child_reqs_and_allocs: &mut [(&LReq, &mut LAlloc)], y_spacing: f64,
                ref_point_index: Option<usize>) {
-    LAlloc::alloc_linear(child_y_reqs, child_y_allocs, box_y_req, box_y_alloc.pos_in_parent(),
+    LAlloc::alloc_linear(child_reqs_and_allocs, box_y_req, box_y_alloc.pos_in_parent(),
                          box_y_alloc.alloc_size(), box_y_alloc.ref_point(), y_spacing,
                          ref_point_index);
-}
-
-
-pub fn requisition_x_boxes<'a>(children: &'a mut [&'a mut LBox]) -> LReq {
-    return requisition_x(&LBox::x_reqs(children));
-}
-
-pub fn alloc_x_boxes<'a>(layout_box: &LBox, children: &'a mut [&'a mut LBox]) {
-    let (child_reqs, mut child_allocs) = LBox::x_reqs_and_mut_allocs(children);
-    alloc_x(&layout_box.x_req, &layout_box.x_alloc, &child_reqs, &mut child_allocs);
-}
-
-pub fn requisition_y_boxes<'a>(children: &'a mut [&'a mut LBox], y_spacing: f64,
-                               ref_point_index: Option<usize>) -> LReq {
-    return requisition_y(&LBox::y_reqs(children), y_spacing, ref_point_index);
-}
-
-pub fn alloc_y_boxes<'a>(layout_box: &LBox, children: &'a mut [&'a mut LBox], y_spacing: f64,
-                         ref_point_index: Option<usize>) {
-    let (child_reqs, mut child_allocs) = LBox::y_reqs_and_mut_allocs(children);
-    alloc_y(&layout_box.y_req, &layout_box.y_alloc, &child_reqs, &mut child_allocs, y_spacing,
-            ref_point_index);
 }
 
 
@@ -76,19 +55,24 @@ mod tests {
         let mut y_allocs : Vec<LAlloc> = (0..n).map(|_| LAlloc::new_empty()).collect();
 
         let (box_x_req, box_y_req) = {
-            let mut x_alloc_refs : Vec<&mut LAlloc> = x_allocs.iter_mut().collect();
-            let mut y_alloc_refs : Vec<&mut LAlloc> = y_allocs.iter_mut().collect();
+            let mut x_pairs: Vec<(&LReq, &mut LAlloc)> = Vec::new();
+            let mut y_pairs: Vec<(&LReq, &mut LAlloc)> = Vec::new();
+            for pair in x_reqs.iter().zip(x_allocs.iter_mut()) {
+                x_pairs.push((*pair.0, pair.1));
+            }
+            for pair in y_reqs.iter().zip(y_allocs.iter_mut()) {
+                y_pairs.push((*pair.0, pair.1));
+            }
 
             let box_x_req = requisition_x(x_reqs);
             let box_x_alloc = LAlloc::new_from_req(&box_x_req, x_pos);
 
-            alloc_x(&box_x_req, &box_x_alloc, x_reqs, &mut x_alloc_refs);
+            alloc_x(&box_x_req, &box_x_alloc, &mut x_pairs);
 
             let box_y_req = requisition_y(y_reqs, y_spacing, ref_point_index);
             let box_y_alloc = LAlloc::new_from_req(&box_y_req, y_pos);
 
-            alloc_y(&box_y_req, &box_y_alloc, y_reqs, &mut y_alloc_refs, y_spacing,
-                ref_point_index);
+            alloc_y(&box_y_req, &box_y_alloc, &mut y_pairs, y_spacing, ref_point_index);
 
             (box_x_req, box_y_req)
         };
@@ -150,8 +134,8 @@ mod tests {
         }
 
         let mut child_refs : Vec<&mut LBox> = children.iter_mut().collect();
-        let (child_x_req_refs, mut child_x_alloc_refs,
-             child_y_req_refs, mut child_y_alloc_refs) = LBox::reqs_and_mut_allocs(&mut child_refs);
+        let (child_x_req_refs, mut child_x_alloc_and_req_refs, child_y_req_refs, mut child_y_alloc_and_req_refs) =
+                LBox::reqs_and_mut_allocs(&mut child_refs);
 
         for _ in 0..num_parents {
             parents.push(LBox::new_empty());
@@ -164,13 +148,13 @@ mod tests {
                     parents[i].x_alloc = LAlloc::new_from_req(&parents[i].x_req, 0.0);
 
                     alloc_x(&parents[i].x_req, &parents[i].x_alloc,
-                            &child_x_req_refs, &mut child_x_alloc_refs);
+                            &mut child_x_alloc_and_req_refs);
 
                     parents[i].y_req = requisition_y(&child_y_req_refs, 0.0, None);
                     parents[i].y_alloc = LAlloc::new_from_req(&parents[i].y_req, 0.0);
 
                     alloc_y(&parents[i].y_req, &parents[i].y_alloc,
-                            &child_y_req_refs, &mut child_y_alloc_refs, 0.0, None);
+                            &mut child_y_alloc_and_req_refs, 0.0, None);
                 }
             }
         });
