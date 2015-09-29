@@ -5,7 +5,7 @@ use std::string::String;
 use cairo::Context;
 
 use layout::lalloc::LAlloc;
-use graphics::rect2d::Rect2D;
+use graphics::bbox2::BBox2;
 use elements::element_ctx::{ElementContext};
 use elements::element::{ElementReq, ElementAlloc, TElementLayout, TElement};
 
@@ -40,7 +40,7 @@ impl TElementLayout for TextElement {
 }
 
 impl TElement for TextElement {
-    fn draw_self(&self, cairo_ctx: &Context, visible_region: &Rect2D) {
+    fn draw_self(&self, cairo_ctx: &Context, visible_region: &BBox2) {
         let y = match self.alloc.y_alloc.ref_point() {
             None => 0.0,
             Some(ref_point) => ref_point
@@ -49,7 +49,7 @@ impl TElement for TextElement {
         cairo_ctx.show_text(self.text.as_str());
     }
 
-    fn draw(&self, cairo_ctx: &Context, visible_region: &Rect2D) {
+    fn draw(&self, cairo_ctx: &Context, visible_region: &BBox2) {
         self.draw_self(cairo_ctx, visible_region);
     }
 

@@ -1,6 +1,7 @@
 use cairo::Context;
 
-use graphics::rect2d::Rect2D;
+use graphics::vector2::Vector2;
+use graphics::bbox2::BBox2;
 
 use elements::element::{TElement, ElementChildRef};
 
@@ -9,16 +10,16 @@ pub trait TContainerElement : TElement {
     fn children<'a>(&'a self) -> &'a Vec<ElementChildRef>;
     fn children_mut<'a>(&'a mut self) -> &'a mut Vec<ElementChildRef>;
 
-    fn draw_children(&self, cairo_ctx: &Context, visible_region: &Rect2D) {
+    fn draw_children(&self, cairo_ctx: &Context, visible_region: &BBox2) {
         for chref in self.children() {
             let child = chref.get();
             let xa = child.x_alloc();
             let ya = child.y_alloc();
-            let child_rect = Rect2D::from_allocs(xa, ya);
-            if child_rect.intersects(visible_region) {
+            let child_bbox = BBox2::from_allocs(xa, ya);
+            if child_bbox.intersects(visible_region) {
                 let dx = xa.pos_in_parent();
                 let dy = ya.pos_in_parent();
-                let visible_region_child_space = visible_region.offset(-dx, -dy);
+                let visible_region_child_space = visible_region.offset(&Vector2::new(-dx, -dy));
                 cairo_ctx.save();
                 cairo_ctx.translate(dx, dy);
                 child.draw(cairo_ctx, &visible_region_child_space);

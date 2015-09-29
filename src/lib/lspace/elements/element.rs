@@ -5,7 +5,7 @@ use std::cell::RefCell;
 
 use layout::lreq::LReq;
 use layout::lalloc::LAlloc;
-use graphics::rect2d::Rect2D;
+use graphics::bbox2::BBox2;
 
 const LAYOUT_FLAG_X_REQ_DIRTY: u8       = 0b00000001;
 const LAYOUT_FLAG_Y_REQ_DIRTY: u8       = 0b00000010;
@@ -99,10 +99,10 @@ pub trait TElementLayout {
 
 
 pub trait TElement : TElementLayout {
-    fn draw_self(&self, cairo_ctx: &Context, visible_region: &Rect2D) {
+    fn draw_self(&self, cairo_ctx: &Context, visible_region: &BBox2) {
     }
 
-    fn draw(&self, cairo_ctx: &Context, visible_region: &Rect2D);
+    fn draw(&self, cairo_ctx: &Context, visible_region: &BBox2);
 
     fn update_x_req(&mut self) {
     }
