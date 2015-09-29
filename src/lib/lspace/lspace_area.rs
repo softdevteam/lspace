@@ -10,7 +10,9 @@ use gtk::traits::*;
 use gtk::signal::Inhibit;
 use cairo::{Context, RectangleInt};
 
-use graphics::rect2d::Rect2D;
+use graphics::vector2::Vector2;
+use graphics::point2::Point2;
+use graphics::bbox2::BBox2;
 use elements::element_ctx::ElementContext;
 use elements::element::{TElement};
 use elements::root_element::RootElement;
@@ -97,7 +99,8 @@ impl LSpaceAreaState {
         match &self.elem {
             &Some(ref e) => {
                 let t1 = time::precise_time_ns();
-                e.draw(cairo_ctx, &Rect2D::new(0.0, 0.0, self.width as f64, self.height as f64));
+                e.draw(cairo_ctx, &BBox2::from_lower_size(Point2::origin(),
+                        Vector2::new(self.width as f64, self.height as f64)));
                 let t2 = time::precise_time_ns();
                 println!("Render time: {}", (t2-t1) as f64 * 1.0e-9);
             },

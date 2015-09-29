@@ -1,7 +1,7 @@
 use cairo::Context;
 
 use layout::lalloc::LAlloc;
-use graphics::rect2d::Rect2D;
+use graphics::bbox2::BBox2;
 
 use elements::element::{ElementReq, ElementAlloc, TElementLayout, TElement, ElementChildRef};
 use elements::container::TContainerElement;
@@ -55,7 +55,7 @@ impl TElementLayout for RootElement {
 }
 
 impl TElement for RootElement {
-    fn draw(&self, cairo_ctx: &Context, visible_region: &Rect2D) {
+    fn draw(&self, cairo_ctx: &Context, visible_region: &BBox2) {
         self.draw_self(cairo_ctx, visible_region);
         self.draw_children(cairo_ctx, visible_region);
     }
