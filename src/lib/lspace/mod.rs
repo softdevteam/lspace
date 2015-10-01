@@ -5,7 +5,7 @@
 
 extern crate cairo;
 extern crate gtk;
-
+extern crate gdk;
 
 pub mod geom;
 pub mod layout;
