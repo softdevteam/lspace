@@ -6,9 +6,10 @@ authors = [ "Geoffrey French <brittix1023@gmail.com>" ]
 [dependencies]
 time = "0.1"
 rand = "0.3"
-gdk = "*"
-gtk = "*"
-cairo-rs = "*"
+gdk = { git = "https://github.com/gtk-rs/gdk" }
+gtk = { git = "https://github.com/gtk-rs/gtk" }
+glib = { git = "https://github.com/gtk-rs/glib" }
+cairo-rs = { git = "https://github.com/gtk-rs/cairo" }
 
 [dev-dependencies]
 hyper = "0.6"

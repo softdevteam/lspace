@@ -114,6 +114,9 @@ impl LSpaceAreaState {
     fn on_motion(&mut self, event_motion: &EventMotion) {
     }
 
+    fn on_scroll(&mut self, event_scroll: &EventScroll) {
+    }
+
     fn on_draw(&mut self, cairo_ctx: Context) {
         self.initialise(&cairo_ctx);
         self.layout();
@@ -221,27 +224,34 @@ impl LSpaceArea {
             });
         }
 
-        // UNCOMMENT WHEN gtk-rs IMPLEMENTS `connect_leave_notify_event`
-        // {
-        //     let state_clone = wrapped_state.clone();
-        //     wrapped_instance.borrow().drawing_area.connect_enter_notify_event(move |widget, event_crossing| {
-        //         state_clone.borrow_mut().on_enter(event_crossing);
-        //         return Inhibit(true);
-        //     });
-        // }
-        //
-        // {
-        //     let state_clone = wrapped_state.clone();
-        //     wrapped_instance.borrow().drawing_area.connect_leave_notify_event(move |widget, event_crossing| {
-        //         state_clone.borrow_mut().on_leave(event_crossing);
-        //         return Inhibit(true);
-        //     });
-        // }
+        {
+            let state_clone = wrapped_state.clone();
+            wrapped_instance.borrow().drawing_area.connect_enter_notify_event(move |widget, event_crossing| {
+                state_clone.borrow_mut().on_enter(event_crossing);
+                return Inhibit(true);
+            });
+        }
+
+        {
+            let state_clone = wrapped_state.clone();
+            wrapped_instance.borrow().drawing_area.connect_leave_notify_event(move |widget, event_crossing| {
+                state_clone.borrow_mut().on_leave(event_crossing);
+                return Inhibit(true);
+            });
+        }
 
         {
             let state_clone = wrapped_state.clone();
             wrapped_instance.borrow().drawing_area.connect_motion_notify_event(move |widget, event_motion| {
                 state_clone.borrow_mut().on_motion(event_motion);
+                return Inhibit(true);
+            });
+        }
+
+        {
+            let state_clone = wrapped_state.clone();
+            wrapped_instance.borrow().drawing_area.connect_scroll_event(move |widget, event_scroll| {
+                state_clone.borrow_mut().on_scroll(event_scroll);
                 return Inhibit(true);
             });
         }
