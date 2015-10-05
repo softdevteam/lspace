@@ -5,6 +5,22 @@ extern crate time;
 use std::rc::Rc;
 use std::cell::RefCell;
 
+use gdk::{
+    EventAny,
+    EventButton,
+    EventConfigure,
+    EventCrossing,
+    EventExpose,
+    EventFocus,
+    EventGrabBroken,
+    EventKey,
+    EventMotion,
+    EventProperty,
+    EventProximity,
+    EventScroll,
+    EventWindowState,
+    Screen,
+};
 use gtk;
 use gtk::traits::*;
 use gtk::signal::Inhibit;
@@ -64,10 +80,10 @@ impl LSpaceAreaState {
         }
     }
 
-    fn on_draw(&mut self, cairo_ctx: Context) {
-        self.initialise(&cairo_ctx);
-        self.layout();
-        self.draw(&cairo_ctx);
+    fn on_realize(&mut self) {
+    }
+
+    fn on_unrealize(&mut self) {
     }
 
     fn on_size_allocate(&mut self, rect: &RectangleInt) {
@@ -75,6 +91,36 @@ impl LSpaceAreaState {
         self.height = rect.height as i32;
 
         self.layout_required = true;
+    }
+
+    fn on_button_press(&mut self, event_button: &EventButton) {
+    }
+
+    fn on_button_release(&mut self, event_button: &EventButton) {
+    }
+
+    fn on_key_press(&mut self, event_key: &EventKey) {
+    }
+
+    fn on_key_release(&mut self, event_key: &EventKey) {
+    }
+
+    fn on_enter(&mut self, event_crossing: &EventCrossing) {
+    }
+
+    fn on_leave(&mut self, event_crossing: &EventCrossing) {
+    }
+
+    fn on_motion(&mut self, event_motion: &EventMotion) {
+    }
+
+    fn on_scroll(&mut self, event_scroll: &EventScroll) {
+    }
+
+    fn on_draw(&mut self, cairo_ctx: Context) {
+        self.initialise(&cairo_ctx);
+        self.layout();
+        self.draw(&cairo_ctx);
     }
 
     fn layout(&mut self) {
@@ -125,19 +171,101 @@ impl LSpaceArea {
         };
         let wrapped_instance = Rc::new(RefCell::new(instance));
 
-        let wrapped_state_for_draw = wrapped_state.clone();
-        let wrapped_instance_for_draw = wrapped_instance.clone();
-        wrapped_instance.borrow().drawing_area.connect_draw(move |widget, cairo_context| {
-            wrapped_state_for_draw.borrow_mut().on_draw(cairo_context);
+        {
+            let state_clone = wrapped_state.clone();
+            wrapped_instance.borrow().drawing_area.connect_realize(move |widget| {
+                state_clone.borrow_mut().on_realize();
+            });
+        }
 
-            wrapped_instance_for_draw.borrow().drawing_area.queue_draw();
-            Inhibit(true)
-        });
+        {
+            let state_clone = wrapped_state.clone();
+            wrapped_instance.borrow().drawing_area.connect_unrealize(move |widget| {
+                state_clone.borrow_mut().on_unrealize();
+            });
+        }
 
-        let wrapped_state_for_sizealloc = wrapped_state.clone();
-        wrapped_instance.borrow().drawing_area.connect_size_allocate(move |widget, rect| {
-            wrapped_state_for_sizealloc.borrow_mut().on_size_allocate(rect);
-        });
+        {
+            let state_clone = wrapped_state.clone();
+            wrapped_instance.borrow().drawing_area.connect_size_allocate(move |widget, rect| {
+                state_clone.borrow_mut().on_size_allocate(rect);
+            });
+        }
+
+        {
+            let state_clone = wrapped_state.clone();
+            wrapped_instance.borrow().drawing_area.connect_button_press_event(move |widget, event_button| {
+                state_clone.borrow_mut().on_button_press(event_button);
+                return Inhibit(true);
+            });
+        }
+
+        {
+            let state_clone = wrapped_state.clone();
+            wrapped_instance.borrow().drawing_area.connect_button_release_event(move |widget, event_button| {
+                state_clone.borrow_mut().on_button_release(event_button);
+                return Inhibit(true);
+            });
+        }
+
+        {
+            let state_clone = wrapped_state.clone();
+            wrapped_instance.borrow().drawing_area.connect_key_press_event(move |widget, event_key| {
+                state_clone.borrow_mut().on_key_press(event_key);
+                return Inhibit(true);
+            });
+        }
+
+        {
+            let state_clone = wrapped_state.clone();
+            wrapped_instance.borrow().drawing_area.connect_key_release_event(move |widget, event_key| {
+                state_clone.borrow_mut().on_key_release(event_key);
+                return Inhibit(true);
+            });
+        }
+
+        {
+            let state_clone = wrapped_state.clone();
+            wrapped_instance.borrow().drawing_area.connect_enter_notify_event(move |widget, event_crossing| {
+                state_clone.borrow_mut().on_enter(event_crossing);
+                return Inhibit(true);
+            });
+        }
+
+        {
+            let state_clone = wrapped_state.clone();
+            wrapped_instance.borrow().drawing_area.connect_leave_notify_event(move |widget, event_crossing| {
+                state_clone.borrow_mut().on_leave(event_crossing);
+                return Inhibit(true);
+            });
+        }
+
+        {
+            let state_clone = wrapped_state.clone();
+            wrapped_instance.borrow().drawing_area.connect_motion_notify_event(move |widget, event_motion| {
+                state_clone.borrow_mut().on_motion(event_motion);
+                return Inhibit(true);
+            });
+        }
+
+        {
+            let state_clone = wrapped_state.clone();
+            wrapped_instance.borrow().drawing_area.connect_scroll_event(move |widget, event_scroll| {
+                state_clone.borrow_mut().on_scroll(event_scroll);
+                return Inhibit(true);
+            });
+        }
+
+        {
+            let state_clone = wrapped_state.clone();
+            let inst_clone = wrapped_instance.clone();
+            wrapped_instance.borrow().drawing_area.connect_draw(move |widget, cairo_context| {
+                state_clone.borrow_mut().on_draw(cairo_context);
+
+                inst_clone.borrow().drawing_area.queue_draw();
+                return Inhibit(true);
+            });
+        }
 
         return wrapped_instance;
     }
