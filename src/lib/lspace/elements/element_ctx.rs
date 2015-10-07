@@ -7,10 +7,12 @@ use cairo::Context;
 use layout::lreq::LReq;
 
 use elements::element::ElementReq;
+use elements::text_element::{TextReqKey, TextStyleParams};
+
 
 
 pub struct ElementContext {
-    req_table: HashMap<String, Rc<ElementReq>>,
+    req_table: HashMap<TextReqKey, Rc<ElementReq>>,
 }
 
 impl ElementContext {
@@ -18,10 +20,13 @@ impl ElementContext {
         return ElementContext{req_table: HashMap::new()};
     }
 
-    pub fn text_shared_req(&mut self, text: String, cairo_ctx: &Context) -> Rc<ElementReq> {
-        let req_entry = self.req_table.entry(text.clone());
+    pub fn text_shared_req(&mut self, style: Rc<TextStyleParams>, text: String,
+                           cairo_ctx: &Context) -> Rc<ElementReq> {
+        let key = style.text_req_key(text.clone());
+        let req_entry = self.req_table.entry(key);
         return match req_entry {
             Entry::Vacant(v) => {
+                style.apply(cairo_ctx);
                 let font_extents = cairo_ctx.font_extents();
                 let text_extents = cairo_ctx.text_extents(text.clone().as_str());
                 let x_req = LReq::new_fixed_size(text_extents.x_advance);

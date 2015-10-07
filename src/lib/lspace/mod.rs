@@ -4,8 +4,9 @@
 #![feature(associated_type_defaults)]
 
 extern crate cairo;
-extern crate gtk;
+extern crate cairo_sys;
 extern crate gdk;
+extern crate gtk;
 
 pub mod geom;
 pub mod layout;
