@@ -49,12 +49,12 @@ pub struct TextStyleParams {
     weight: TextWeight,
     slant: TextSlant,
     size: f64,
-    colour: (f64, f64, f64),
+    colour: (f32, f32, f32, f32),
 }
 
 impl TextStyleParams {
     pub fn new(font_family: String, weight: TextWeight, slant: TextSlant,
-               size: f64, colour: (f64, f64, f64)) -> TextStyleParams {
+               size: f64, colour: (f32, f32, f32, f32)) -> TextStyleParams {
         return TextStyleParams{font_family: font_family, weight: weight, slant: slant, size: size,
                                colour: colour};
     }
@@ -62,16 +62,17 @@ impl TextStyleParams {
     pub fn default() -> TextStyleParams {
         return TextStyleParams{font_family: String::from("Sans serif"),
                                weight: TextWeight::Normal, slant: TextSlant::Normal,
-                               size: 14.0, colour: (0.0, 0.0, 0.0)};
+                               size: 14.0, colour: (0.0, 0.0, 0.0, 0.0)};
     }
 
     pub fn with_family(font_family: String) -> TextStyleParams {
         return TextStyleParams{font_family: font_family,
                                weight: TextWeight::Normal, slant: TextSlant::Normal,
-                               size: 14.0, colour: (0.0, 0.0, 0.0)};
+                               size: 14.0, colour: (0.0, 0.0, 0.0, 0.0)};
     }
 
-    pub fn with_family_and_colour(font_family: String, colour: (f64, f64, f64)) -> TextStyleParams {
+    pub fn with_family_and_colour(font_family: String,
+                                  colour: (f32, f32, f32, f32)) -> TextStyleParams {
         return TextStyleParams{font_family: font_family,
                                weight: TextWeight::Normal, slant: TextSlant::Normal,
                                size: 14.0, colour: colour};
@@ -89,7 +90,8 @@ impl TextStyleParams {
         cairo_ctx.select_font_face(self.font_family.as_str(), self.slant.as_cairo(),
                                    self.weight.as_cairo());
         cairo_ctx.set_font_size(self.size);
-        cairo_ctx.set_source_rgb(self.colour.0, self.colour.1, self.colour.2);
+        cairo_ctx.set_source_rgba(self.colour.0 as f64, self.colour.1 as f64, self.colour.2 as f64,
+                                  self.colour.3 as f64);
     }
 }
 

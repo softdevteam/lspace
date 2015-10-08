@@ -135,15 +135,15 @@ fn main() {
         vec![
             TokenDefinition::new("[\\[\\]\\(\\)\\{\\}<>:\\.&'\"]",
                 Rc::new(TextStyleParams::with_family_and_colour(String::from("Courier New"),
-                                                                (0.0, 0.5, 1.0)))),
+                                                                (0.0, 0.5, 1.0, 1.0)))),
             TokenDefinition::keywords(vec!["let", "mut", "for", "while", "struct", "enum", "trait",
                                            "in", "as", "match", "fn", "return", "use", "const",
                                            "extern", "impl", "pub", "self"],
                 Rc::new(TextStyleParams::with_family_and_colour(String::from("Courier New"),
-                                                                (0.7, 0.0, 0.0)))),
+                                                                (0.7, 0.0, 0.0, 1.0)))),
             TokenDefinition::new(r"\w+",
                 Rc::new(TextStyleParams::with_family_and_colour(String::from("Courier New"),
-                                                                (0.0, 0.5, 0.0)))),
+                                                                (0.0, 0.5, 0.0, 1.0)))),
         ],
 
         Rc::new(TextStyleParams::with_family(String::from("Courier New")))
