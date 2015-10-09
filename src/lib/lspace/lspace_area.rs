@@ -261,8 +261,6 @@ impl LSpaceArea {
             let inst_clone = wrapped_instance.clone();
             wrapped_instance.borrow().drawing_area.connect_draw(move |widget, cairo_context| {
                 state_clone.borrow_mut().on_draw(cairo_context);
-
-                inst_clone.borrow().drawing_area.queue_draw();
                 return Inhibit(true);
             });
         }
