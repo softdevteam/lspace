@@ -13,6 +13,7 @@ use std::io::{self, BufReader, BufWriter};
 use std::fs::File;
 use std::path::Path;
 use std::string::String;
+use std::rc::Rc;
 
 use hyper::Client;
 use hyper::header::Connection;
@@ -20,6 +21,7 @@ use hyper::header::Connection;
 use gtk::traits::*;
 use gtk::signal::Inhibit;
 
+use lspace::elements::text_element::{TextStyleParams};
 use lspace::pres::pres::Pres;
 use lspace::pres::primitive::Column;
 use lspace::pres::richtext::paragraph;
@@ -93,9 +95,10 @@ fn main() {
     println!("Loaded War and Peace ({} paragraphs); creating presentation...", paragraphs.len());
 
     // Create a presentation of the text using the `lspace.pres` API
+    let style = Rc::new(TextStyleParams::default());
     let mut pres_paragraphs: Vec<Pres> = Vec::new();
     for ref para_text in paragraphs {
-        pres_paragraphs.push(paragraph(para_text));
+        pres_paragraphs.push(paragraph(para_text, &style));
     }
     let content = Column::new(pres_paragraphs);
 
@@ -106,7 +109,7 @@ fn main() {
 
     // Create a GTK window in which to place it
     let window = gtk::Window::new(gtk::WindowType::Toplevel).unwrap();
-    window.set_title("Cairo API test");
+    window.set_title("War and Peace");
     window.add(area.borrow().gtk_widget());
     window.set_default_size(800, 500);
 

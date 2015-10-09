@@ -1,26 +1,120 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::string::String;
+use std::hash::{Hash};
+use std::mem::transmute;
 
 use cairo::Context;
+use cairo_sys::enums::{FontSlant, FontWeight};
 
 use layout::lalloc::LAlloc;
 use geom::bbox2::BBox2;
+use geom::colour::{Colour, BLACK};
 use elements::element_ctx::{ElementContext};
 use elements::element::{ElementReq, ElementAlloc, TElementLayout, TElement};
 
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum TextWeight {
+    Normal,
+    Bold,
+}
+
+impl TextWeight {
+    pub fn as_cairo(&self) -> FontWeight {
+        match self {
+            &TextWeight::Normal => FontWeight::Normal,
+            &TextWeight::Bold => FontWeight::Bold,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum TextSlant {
+    Normal,
+    Italic,
+}
+
+impl TextSlant {
+    pub fn as_cairo(&self) -> FontSlant {
+        match self {
+            &TextSlant::Normal => FontSlant::Normal,
+            &TextSlant::Italic => FontSlant::Italic,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TextStyleParams {
+    font_family: String,
+    weight: TextWeight,
+    slant: TextSlant,
+    size: f64,
+    colour: Colour,
+}
+
+impl TextStyleParams {
+    pub fn new(font_family: String, weight: TextWeight, slant: TextSlant,
+               size: f64, colour: Colour) -> TextStyleParams {
+        return TextStyleParams{font_family: font_family, weight: weight, slant: slant, size: size,
+                               colour: colour};
+    }
+
+    pub fn default() -> TextStyleParams {
+        return TextStyleParams{font_family: String::from("Sans serif"),
+                               weight: TextWeight::Normal, slant: TextSlant::Normal,
+                               size: 14.0, colour: BLACK};
+    }
+
+    pub fn with_family(font_family: String) -> TextStyleParams {
+        return TextStyleParams{font_family: font_family,
+                               weight: TextWeight::Normal, slant: TextSlant::Normal,
+                               size: 14.0, colour: BLACK};
+    }
+
+    pub fn with_family_and_colour(font_family: String, colour: Colour) -> TextStyleParams {
+        return TextStyleParams{font_family: font_family,
+                               weight: TextWeight::Normal, slant: TextSlant::Normal,
+                               size: 14.0, colour: colour};
+    }
+
+    pub fn text_req_key(&self, text: String) -> TextReqKey {
+        // In all the cases we care about the font size will not be an invalid FP number.
+        // As a consequence of Rust's stick-up-its-arse handling of floats we have to use
+        // some nasty unsafe code to get something that we can get a hash code from...
+        let hashable_size: i64 = unsafe{transmute(self.size)};
+        return (self.font_family.clone(), self.weight, self.slant, hashable_size, text);
+    }
+
+    pub fn apply(&self, cairo_ctx: &Context) {
+        cairo_ctx.select_font_face(self.font_family.as_str(), self.slant.as_cairo(),
+                                   self.weight.as_cairo());
+        cairo_ctx.set_font_size(self.size);
+        cairo_ctx.set_source_rgba(self.colour.r as f64, self.colour.g as f64, self.colour.b as f64,
+                                  self.colour.a as f64);
+    }
+}
+
+pub type TextReqKey = (String, TextWeight, TextSlant, i64, String);
+
+
+
+
+
 pub struct TextElement {
     req: Rc<ElementReq>,
+    style: Rc<TextStyleParams>,
     alloc: ElementAlloc,
     text: String,
 }
 
 impl TextElement {
-    pub fn new(text: &String, cairo_ctx: &Context, elem_ctx: &RefCell<ElementContext>) -> TextElement {
-        let req = elem_ctx.borrow_mut().text_shared_req(text.clone(), cairo_ctx);
-        return TextElement{text: text.clone(),
+    pub fn new(text: String, style: Rc<TextStyleParams>, cairo_ctx: &Context,
+               elem_ctx: &RefCell<ElementContext>) -> TextElement {
+        let req = elem_ctx.borrow_mut().text_shared_req(style.clone(), text.clone(), cairo_ctx);
+        return TextElement{text: text,
                            req: req,
+                           style: style,
                            alloc: ElementAlloc::new()};
     }
 }
@@ -46,6 +140,7 @@ impl TElement for TextElement {
             Some(ref_point) => ref_point
         };
         cairo_ctx.move_to(0.0, y);
+        self.style.apply(cairo_ctx);
         cairo_ctx.show_text(self.text.as_str());
     }
 

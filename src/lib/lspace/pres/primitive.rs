@@ -8,18 +8,20 @@ use pres::pres::{Pres, TPres, PresBuildCtx};
 
 
 pub struct Text {
-    text: String
+    text: String,
+    style: Rc<text_element::TextStyleParams>,
 }
 
 impl Text {
-    pub fn new(text: String) -> Pres {
-        return Box::new(Text{text: text});
+    pub fn new(text: String, style: Rc<text_element::TextStyleParams>) -> Pres {
+        return Box::new(Text{text: text, style: style});
     }
 }
 
 impl TPres for Text {
     fn build(&self, pres_ctx: &PresBuildCtx) -> ElementChildRef {
-        let elem = text_element::TextElement::new(&self.text.clone(), pres_ctx.cairo_ctx, &pres_ctx.elem_ctx);
+        let elem = text_element::TextElement::new(self.text.clone(), self.style.clone(),
+                                                  pres_ctx.cairo_ctx, &pres_ctx.elem_ctx);
         return ElementChildRef::new(elem);
     }
 }
