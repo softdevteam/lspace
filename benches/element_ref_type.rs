@@ -30,7 +30,7 @@ mod tests {
 
     // Benchmark results summary
     //
-    // When varying the reference type within the `ElementChildRef` structure, the following
+    // When varying the reference type within the `ElementRef` structure, the following
     // results were obtained:
     //
     // Box<TElement>: ~49,940,000 ns                (Base case; boxed trait)
@@ -39,23 +39,23 @@ mod tests {
     // Rc<Box<TElement>>: ~62,100,000 ns            (multiple ownership, mutate via `Rc::get_mut`)
     // Rc<RefCell<Box<TElement>>>: ~76,880,000 ns   (everything)
     //
-    // To run the benchmark yourself, uncomment the appropriate `ElementChildRef`
+    // To run the benchmark yourself, uncomment the appropriate `ElementRef`
     // implementation and run with `cargo bench`.
 
 
     //
     // Box<TElement>: ~ 49,940,000 ns
     //
-    // pub struct ElementChildRef {
+    // pub struct ElementRef {
     //     x: Box<TElement>
     // }
     //
     // pub type ElemBorrow<'a> = &'a Box<TElement>;
     // pub type ElemBorrowMut<'a> = &'a mut Box<TElement>;
     //
-    // impl ElementChildRef {
-    //     pub fn new<T: TElement + 'static>(x: T) -> ElementChildRef {
-    //         return ElementChildRef{x: Box::new(x)};
+    // impl ElementRef {
+    //     pub fn new<T: TElement + 'static>(x: T) -> ElementRef {
+    //         return ElementRef{x: Box::new(x)};
     //     }
     //
     //     pub fn get(&self) -> ElemBorrow {
@@ -66,21 +66,26 @@ mod tests {
     //         return &mut self.x;
     //     }
     // }
+    //
+    // fn ref_to_elem<T: TElement + 'static>(x: T) -> ElementRef {
+    //     return ElementRef::new(x);
+    // }
+
 
 
     //
     // Box<Box<TElement>>: ~ 53,300,000 ns
     //
-    // pub struct ElementChildRef {
+    // pub struct ElementRef {
     //     x: Box<Box<TElement>>
     // }
     //
     // pub type ElemBorrow<'a> = &'a Box<Box<TElement>>;
     // pub type ElemBorrowMut<'a> = &'a mut Box<Box<TElement>>;
     //
-    // impl ElementChildRef {
-    //     pub fn new<T: TElement + 'static>(x: T) -> ElementChildRef {
-    //         return ElementChildRef{x: Box::new(Box::new(x))};
+    // impl ElementRef {
+    //     pub fn new<T: TElement + 'static>(x: T) -> ElementRef {
+    //         return ElementRef{x: Box::new(Box::new(x))};
     //     }
     //
     //     pub fn get(&self) -> ElemBorrow {
@@ -91,21 +96,25 @@ mod tests {
     //         return &mut self.x;
     //     }
     // }
+    //
+    // fn ref_to_elem<T: TElement + 'static>(x: T) -> ElementRef {
+    //     return ElementRef::new(x);
+    // }
 
 
     //
     // RefCell<Box<TElement>>: ~ 62,260,000 ns
     //
-    // pub struct ElementChildRef {
+    // pub struct ElementRef {
     //     x: RefCell<Box<TElement>>
     // }
     //
     // pub type ElemBorrow<'a> = Ref<'a, Box<TElement>>;
     // pub type ElemBorrowMut<'a> = RefMut<'a, Box<TElement>>;
     //
-    // impl ElementChildRef {
-    //     pub fn new<T: TElement + 'static>(x: T) -> ElementChildRef {
-    //         return ElementChildRef{x: RefCell::new(Box::new(x))};
+    // impl ElementRef {
+    //     pub fn new<T: TElement + 'static>(x: T) -> ElementRef {
+    //         return ElementRef{x: RefCell::new(Box::new(x))};
     //     }
     //
     //     pub fn get(&self) -> ElemBorrow {
@@ -117,46 +126,54 @@ mod tests {
     //         ;
     //     }
     // }
+    //
+    // fn ref_to_elem<T: TElement + 'static>(x: T) -> ElementRef {
+    //     return ElementRef::new(x);
+    // }
 
 
     //
     // Rc<Box<TElement>>: ~ 62,100,000 ns
     //
-    pub struct ElementChildRef {
-        x: Rc<Box<TElement>>
-    }
-
-    pub type ElemBorrow<'a> = &'a Rc<Box<TElement>>;
-    pub type ElemBorrowMut<'a> = &'a mut Box<TElement>;
-
-    impl ElementChildRef {
-        pub fn new<T: TElement + 'static>(x: T) -> ElementChildRef {
-            return ElementChildRef{x: Rc::new(Box::new(x))};
-        }
-
-        pub fn get(&self) -> ElemBorrow {
-            return &self.x;
-        }
-
-        pub fn get_mut(&mut self) -> ElemBorrowMut {
-            return Rc::get_mut(&mut self.x).unwrap();
-        }
-    }
+    // pub struct ElementRef {
+    //     x: Rc<Box<TElement>>
+    // }
+    //
+    // pub type ElemBorrow<'a> = &'a Rc<Box<TElement>>;
+    // pub type ElemBorrowMut<'a> = &'a mut Box<TElement>;
+    //
+    // impl ElementRef {
+    //     pub fn new<T: TElement + 'static>(x: T) -> ElementRef {
+    //         return ElementRef{x: Rc::new(Box::new(x))};
+    //     }
+    //
+    //     pub fn get(&self) -> ElemBorrow {
+    //         return &self.x;
+    //     }
+    //
+    //     pub fn get_mut(&mut self) -> ElemBorrowMut {
+    //         return Rc::get_mut(&mut self.x).unwrap();
+    //     }
+    // }
+    //
+    // fn ref_to_elem<T: TElement + 'static>(x: T) -> ElementRef {
+    //     return ElementRef::new(x);
+    // }
 
 
     //
     // Rc<RefCell<Box<TElement>>>: ~ 76,880,000 ns
     //
-    // pub struct ElementChildRef {
+    // pub struct ElementRef {
     //     x: Rc<RefCell<Box<TElement>>>
     // }
     //
     // pub type ElemBorrow<'a> = Ref<'a, Box<TElement>>;
     // pub type ElemBorrowMut<'a> = RefMut<'a, Box<TElement>>;
     //
-    // impl ElementChildRef {
-    //     pub fn new<T: TElement + 'static>(x: T) -> ElementChildRef {
-    //         return ElementChildRef{x: Rc::new(RefCell::new(Box::new(x)))};
+    // impl ElementRef {
+    //     pub fn new<T: TElement + 'static>(x: T) -> ElementRef {
+    //         return ElementRef{x: Rc::new(RefCell::new(Box::new(x)))};
     //     }
     //
     //     pub fn get(&self) -> ElemBorrow {
@@ -167,6 +184,47 @@ mod tests {
     //         return self.x.borrow_mut();
     //     }
     // }
+    //
+    // fn ref_to_elem<T: TElement + 'static>(x: T) -> ElementRef {
+    //     return ElementRef::new(x);
+    // }
+
+
+    //
+    // Rc<RefCell<Box<TElement>>> with abstract reference types: ~ 95,460,000 ns
+    //
+    pub trait TElementRef {
+        fn get(&self) -> ElemBorrow;
+        fn get_mut(&mut self) -> ElemBorrowMut;
+    }
+
+    pub struct ElementRefImpl {
+        x: Rc<RefCell<Box<TElement>>>
+    }
+
+    pub type ElemBorrow<'a> = Ref<'a, Box<TElement>>;
+    pub type ElemBorrowMut<'a> = RefMut<'a, Box<TElement>>;
+    pub type ElementRef = Box<TElementRef>;
+
+    impl ElementRefImpl {
+        pub fn new<T: TElement + 'static>(x: T) -> Box<TElementRef> {
+            return Box::new(ElementRefImpl{x: Rc::new(RefCell::new(Box::new(x)))});
+        }
+    }
+
+    impl TElementRef for ElementRefImpl {
+        fn get(&self) -> ElemBorrow {
+            return self.x.borrow();
+        }
+
+        fn get_mut(&mut self) -> ElemBorrowMut {
+            return self.x.borrow_mut();
+        }
+    }
+
+    fn ref_to_elem<T: TElement + 'static>(x: T) -> ElementRef {
+        return ElementRefImpl::new(x);
+    }
 
 
     pub struct ElementReq {
@@ -245,8 +303,8 @@ mod tests {
 
 
     pub trait TContainerElement : TElement {
-        fn children<'a>(&'a self) -> &'a Vec<ElementChildRef>;
-        fn children_mut<'a>(&'a mut self) -> &'a mut Vec<ElementChildRef>;
+        fn children<'a>(&'a self) -> &'a Vec<ElementRef>;
+        fn children_mut<'a>(&'a mut self) -> &'a mut Vec<ElementRef>;
 
         fn update_children_x_req(&mut self) {
             for child in self.children_mut() {
@@ -330,13 +388,13 @@ mod tests {
     pub struct FlowElement {
         req: ElementReq,
         alloc: ElementAlloc,
-        children: Vec<ElementChildRef>,
+        children: Vec<ElementRef>,
         lines: Vec<flow_layout::FlowLine>
     }
 
 
     impl FlowElement {
-        pub fn new(children: Vec<ElementChildRef>) -> FlowElement {
+        pub fn new(children: Vec<ElementRef>) -> FlowElement {
             return FlowElement{req: ElementReq::new(), alloc: ElementAlloc::new(),
                                children: children, lines: Vec::new()};
         }
@@ -398,11 +456,11 @@ mod tests {
 
 
     impl TContainerElement for FlowElement {
-        fn children<'a>(&'a self) -> &'a Vec<ElementChildRef> {
+        fn children<'a>(&'a self) -> &'a Vec<ElementRef> {
             return &self.children;
         }
 
-        fn children_mut<'a>(&'a mut self) -> &'a mut Vec<ElementChildRef> {
+        fn children_mut<'a>(&'a mut self) -> &'a mut Vec<ElementRef> {
             return &mut self.children;
         }
     }
@@ -415,12 +473,12 @@ mod tests {
     pub struct ColumnElement {
         req: ElementReq,
         alloc: ElementAlloc,
-        children: Vec<ElementChildRef>,
+        children: Vec<ElementRef>,
     }
 
 
     impl ColumnElement {
-        pub fn new(children: Vec<ElementChildRef>) -> ColumnElement {
+        pub fn new(children: Vec<ElementRef>) -> ColumnElement {
             return ColumnElement{req: ElementReq::new(), alloc: ElementAlloc::new(),
                                  children: children};
         }
@@ -480,11 +538,11 @@ mod tests {
 
 
     impl TContainerElement for ColumnElement {
-        fn children<'a>(&'a self) -> &'a Vec<ElementChildRef> {
+        fn children<'a>(&'a self) -> &'a Vec<ElementRef> {
             return &self.children;
         }
 
-        fn children_mut<'a>(&'a mut self) -> &'a mut Vec<ElementChildRef> {
+        fn children_mut<'a>(&'a mut self) -> &'a mut Vec<ElementRef> {
             return &mut self.children;
         }
     }
@@ -497,11 +555,11 @@ mod tests {
     pub struct RootElement {
         req: ElementReq,
         alloc: ElementAlloc,
-        children: Vec<ElementChildRef>,
+        children: Vec<ElementRef>,
     }
 
     impl RootElement {
-        pub fn new(child: ElementChildRef) -> RootElement {
+        pub fn new(child: ElementRef) -> RootElement {
             return RootElement{req: ElementReq::new(), alloc: ElementAlloc::new(),
                                children: vec![child]};
         }
@@ -562,11 +620,11 @@ mod tests {
     }
 
     impl TContainerElement for RootElement {
-        fn children<'a>(&'a self) -> &'a Vec<ElementChildRef> {
+        fn children<'a>(&'a self) -> &'a Vec<ElementRef> {
             return &self.children;
         }
 
-        fn children_mut<'a>(&'a mut self) -> &'a mut Vec<ElementChildRef> {
+        fn children_mut<'a>(&'a mut self) -> &'a mut Vec<ElementRef> {
             return &mut self.children;
         }
     }
@@ -588,7 +646,7 @@ mod tests {
 
         for i in 0..n_words {
             let req = text_reqs[pos].clone();
-            let elem = ElementChildRef::new(TextElement::new(req));
+            let elem = ref_to_elem(TextElement::new(req));
             text_elements.push(elem);
             pos = pos + 1;
             if pos >= text_reqs.len() {
@@ -607,11 +665,11 @@ mod tests {
         for i_para in 0..n_paras {
             let (pos2, f) = build_flow(pos, n_words, &text_reqs);
             pos = pos2;
-            flow_elements.push(ElementChildRef::new(f));
+            flow_elements.push(ref_to_elem(f));
         }
 
         let c = ColumnElement::new(flow_elements);
-        return RootElement::new(ElementChildRef::new(c));
+        return RootElement::new(ref_to_elem(c));
     }
 
     fn build_test_element_tree() -> RootElement {
