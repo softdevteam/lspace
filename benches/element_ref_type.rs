@@ -50,19 +50,19 @@ mod tests {
     //     x: Box<TElement>
     // }
     //
-    // pub type ElementBorrow<'a> = &'a Box<TElement>;
-    // pub type ElementMutBorrow<'a> = &'a mut Box<TElement>;
+    // pub type ElemBorrow<'a> = &'a Box<TElement>;
+    // pub type ElemBorrowMut<'a> = &'a mut Box<TElement>;
     //
     // impl ElementChildRef {
     //     pub fn new<T: TElement + 'static>(x: T) -> ElementChildRef {
     //         return ElementChildRef{x: Box::new(x)};
     //     }
     //
-    //     pub fn get(&self) -> ElementBorrow {
+    //     pub fn get(&self) -> ElemBorrow {
     //         return &self.x;
     //     }
     //
-    //     pub fn get_mut(&mut self) -> ElementMutBorrow {
+    //     pub fn get_mut(&mut self) -> ElemBorrowMut {
     //         return &mut self.x;
     //     }
     // }
@@ -75,19 +75,19 @@ mod tests {
     //     x: Box<Box<TElement>>
     // }
     //
-    // pub type ElementBorrow<'a> = &'a Box<Box<TElement>>;
-    // pub type ElementMutBorrow<'a> = &'a mut Box<Box<TElement>>;
+    // pub type ElemBorrow<'a> = &'a Box<Box<TElement>>;
+    // pub type ElemBorrowMut<'a> = &'a mut Box<Box<TElement>>;
     //
     // impl ElementChildRef {
     //     pub fn new<T: TElement + 'static>(x: T) -> ElementChildRef {
     //         return ElementChildRef{x: Box::new(Box::new(x))};
     //     }
     //
-    //     pub fn get(&self) -> ElementBorrow {
+    //     pub fn get(&self) -> ElemBorrow {
     //         return &self.x;
     //     }
     //
-    //     pub fn get_mut(&mut self) -> ElementMutBorrow {
+    //     pub fn get_mut(&mut self) -> ElemBorrowMut {
     //         return &mut self.x;
     //     }
     // }
@@ -100,19 +100,19 @@ mod tests {
     //     x: RefCell<Box<TElement>>
     // }
     //
-    // pub type ElementBorrow<'a> = Ref<'a, Box<TElement>>;
-    // pub type ElementMutBorrow<'a> = RefMut<'a, Box<TElement>>;
+    // pub type ElemBorrow<'a> = Ref<'a, Box<TElement>>;
+    // pub type ElemBorrowMut<'a> = RefMut<'a, Box<TElement>>;
     //
     // impl ElementChildRef {
     //     pub fn new<T: TElement + 'static>(x: T) -> ElementChildRef {
     //         return ElementChildRef{x: RefCell::new(Box::new(x))};
     //     }
     //
-    //     pub fn get(&self) -> ElementBorrow {
+    //     pub fn get(&self) -> ElemBorrow {
     //         return self.x.borrow();
     //     }
     //
-    //     pub fn get_mut(&mut self) -> ElementMutBorrow {
+    //     pub fn get_mut(&mut self) -> ElemBorrowMut {
     //         return self.x.borrow_mut()
     //         ;
     //     }
@@ -126,19 +126,19 @@ mod tests {
         x: Rc<Box<TElement>>
     }
 
-    pub type ElementBorrow<'a> = &'a Rc<Box<TElement>>;
-    pub type ElementMutBorrow<'a> = &'a mut Box<TElement>;
+    pub type ElemBorrow<'a> = &'a Rc<Box<TElement>>;
+    pub type ElemBorrowMut<'a> = &'a mut Box<TElement>;
 
     impl ElementChildRef {
         pub fn new<T: TElement + 'static>(x: T) -> ElementChildRef {
             return ElementChildRef{x: Rc::new(Box::new(x))};
         }
 
-        pub fn get(&self) -> ElementBorrow {
+        pub fn get(&self) -> ElemBorrow {
             return &self.x;
         }
 
-        pub fn get_mut(&mut self) -> ElementMutBorrow {
+        pub fn get_mut(&mut self) -> ElemBorrowMut {
             return Rc::get_mut(&mut self.x).unwrap();
         }
     }
@@ -151,19 +151,19 @@ mod tests {
     //     x: Rc<RefCell<Box<TElement>>>
     // }
     //
-    // pub type ElementBorrow<'a> = Ref<'a, Box<TElement>>;
-    // pub type ElementMutBorrow<'a> = RefMut<'a, Box<TElement>>;
+    // pub type ElemBorrow<'a> = Ref<'a, Box<TElement>>;
+    // pub type ElemBorrowMut<'a> = RefMut<'a, Box<TElement>>;
     //
     // impl ElementChildRef {
     //     pub fn new<T: TElement + 'static>(x: T) -> ElementChildRef {
     //         return ElementChildRef{x: Rc::new(RefCell::new(Box::new(x)))};
     //     }
     //
-    //     pub fn get(&self) -> ElementBorrow {
+    //     pub fn get(&self) -> ElemBorrow {
     //         return self.x.borrow();
     //     }
     //
-    //     pub fn get_mut(&mut self) -> ElementMutBorrow {
+    //     pub fn get_mut(&mut self) -> ElemBorrowMut {
     //         return self.x.borrow_mut();
     //     }
     // }
@@ -199,7 +199,7 @@ mod tests {
     }
 
 
-    pub trait TElementLayout {
+    pub trait TElement {
         fn element_req(&self) -> &ElementReq;
         fn element_alloc(&self) -> &ElementAlloc;
         fn element_req_and_mut_alloc(&mut self) -> (&ElementReq, &mut ElementAlloc);
@@ -229,10 +229,7 @@ mod tests {
             let ra = self.element_req_and_mut_alloc();
             return (&ra.0.y_req, &mut ra.1.y_alloc);
         }
-    }
 
-
-    pub trait TElement : TElementLayout {
         fn update_x_req(&mut self) {
         }
 
@@ -295,7 +292,7 @@ mod tests {
     }
 
 
-    impl TElementLayout for TextElement {
+    impl TElement for TextElement {
         fn element_req(&self) -> &ElementReq {
             return &*self.req;
         }
@@ -307,10 +304,7 @@ mod tests {
         fn element_req_and_mut_alloc(&mut self) -> (&ElementReq, &mut ElementAlloc) {
             return (&*self.req, &mut self.alloc);
         }
-    }
 
-
-    impl TElement for TextElement {
         fn update_x_req(&mut self) {
             // Nothing to do; requisition is shared
         }
@@ -349,7 +343,7 @@ mod tests {
     }
 
 
-    impl TElementLayout for FlowElement {
+    impl TElement for FlowElement {
         fn element_req(&self) -> &ElementReq {
             return &self.req;
         }
@@ -361,20 +355,17 @@ mod tests {
         fn element_req_and_mut_alloc(&mut self) -> (&ElementReq, &mut ElementAlloc) {
             return (&self.req, &mut self.alloc);
         }
-    }
 
-
-    impl TElement for FlowElement {
         fn update_x_req(&mut self) {
             self.update_children_x_req();
-            let child_refs: Vec<ElementBorrow> = self.children.iter().map(|c| c.get()).collect();
+            let child_refs: Vec<ElemBorrow> = self.children.iter().map(|c| c.get()).collect();
             let child_x_reqs: Vec<&LReq> = child_refs.iter().map(|c| c.x_req()).collect();
             self.req.x_req = flow_layout::requisition_x(&child_x_reqs, 0.0, flow_layout::FlowIndent::NoIndent);
         }
 
         fn allocate_x(&mut self) {
             {
-                let mut child_refs: Vec<ElementMutBorrow> = self.children.iter_mut().map(|c| c.get_mut()).collect();
+                let mut child_refs: Vec<ElemBorrowMut> = self.children.iter_mut().map(|c| c.get_mut()).collect();
                 let mut x_pairs: Vec<(&LReq, &mut LAlloc)> = child_refs.iter_mut().map(
                         |c| c.x_req_and_mut_alloc()).collect();
                 self.lines = flow_layout::alloc_x(&self.req.x_req,
@@ -387,14 +378,14 @@ mod tests {
 
         fn update_y_req(&mut self) {
             self.update_children_y_req();
-            let child_refs: Vec<ElementBorrow> = self.children.iter().map(|c| c.get()).collect();
+            let child_refs: Vec<ElemBorrow> = self.children.iter().map(|c| c.get()).collect();
             let child_y_reqs: Vec<&LReq> = child_refs.iter().map(|c| c.y_req()).collect();
             self.req.y_req = flow_layout::requisition_y(&child_y_reqs, 0.0, &mut self.lines);
         }
 
         fn allocate_y(&mut self) {
             {
-                let mut child_refs: Vec<ElementMutBorrow> = self.children.iter_mut().map(|c| c.get_mut()).collect();
+                let mut child_refs: Vec<ElemBorrowMut> = self.children.iter_mut().map(|c| c.get_mut()).collect();
                 let mut y_pairs: Vec<(&LReq, &mut LAlloc)> = child_refs.iter_mut().map(
                         |c| c.y_req_and_mut_alloc()).collect();
                 flow_layout::alloc_y(&self.req.y_req,
@@ -436,7 +427,7 @@ mod tests {
     }
 
 
-    impl TElementLayout for ColumnElement {
+    impl TElement for ColumnElement {
         fn element_req(&self) -> &ElementReq {
             return &self.req;
         }
@@ -448,20 +439,17 @@ mod tests {
         fn element_req_and_mut_alloc(&mut self) -> (&ElementReq, &mut ElementAlloc) {
             return (&self.req, &mut self.alloc);
         }
-    }
 
-
-    impl TElement for ColumnElement {
         fn update_x_req(&mut self) {
             self.update_children_x_req();
-            let child_refs: Vec<ElementBorrow> = self.children.iter().map(|c| c.get()).collect();
+            let child_refs: Vec<ElemBorrow> = self.children.iter().map(|c| c.get()).collect();
             let child_x_reqs: Vec<&LReq> = child_refs.iter().map(|c| c.x_req()).collect();
             self.req.x_req = vertical_layout::requisition_x(&child_x_reqs);
         }
 
         fn allocate_x(&mut self) {
             {
-                let mut child_refs: Vec<ElementMutBorrow> = self.children.iter_mut().map(|c| c.get_mut()).collect();
+                let mut child_refs: Vec<ElemBorrowMut> = self.children.iter_mut().map(|c| c.get_mut()).collect();
                 let mut x_pairs: Vec<(&LReq, &mut LAlloc)> = child_refs.iter_mut().map(
                         |c| c.x_req_and_mut_alloc()).collect();
                 vertical_layout::alloc_x(&self.req.x_req,
@@ -472,14 +460,14 @@ mod tests {
 
         fn update_y_req(&mut self) {
             self.update_children_y_req();
-            let child_refs: Vec<ElementBorrow> = self.children.iter().map(|c| c.get()).collect();
+            let child_refs: Vec<ElemBorrow> = self.children.iter().map(|c| c.get()).collect();
             let child_y_reqs: Vec<&LReq> = child_refs.iter().map(|c| c.y_req()).collect();
             self.req.y_req = vertical_layout::requisition_y(&child_y_reqs, 0.0, None);
         }
 
         fn allocate_y(&mut self) {
             {
-                let mut child_refs: Vec<ElementMutBorrow> = self.children.iter_mut().map(|c| c.get_mut()).collect();
+                let mut child_refs: Vec<ElemBorrowMut> = self.children.iter_mut().map(|c| c.get_mut()).collect();
                 let mut y_pairs: Vec<(&LReq, &mut LAlloc)> = child_refs.iter_mut().map(
                         |c| c.y_req_and_mut_alloc()).collect();
                 vertical_layout::alloc_y(&self.req.y_req,
@@ -539,7 +527,7 @@ mod tests {
         }
     }
 
-    impl TElementLayout for RootElement {
+    impl TElement for RootElement {
         fn element_req(&self) -> &ElementReq {
             return &self.req;
         }
@@ -551,9 +539,7 @@ mod tests {
         fn element_req_and_mut_alloc(&mut self) -> (&ElementReq, &mut ElementAlloc) {
             return (&self.req, &mut self.alloc);
         }
-    }
 
-    impl TElement for RootElement {
         fn update_x_req(&mut self) {
             self.update_children_x_req();
             self.req.x_req = self.children[0].get().x_req().clone();
