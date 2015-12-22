@@ -134,10 +134,7 @@ impl <'a> Neg for &'a Vector2 {
 // TESTS
 //
 
-#[cfg(test)]
 mod tests {
-    extern crate test;
-
     use std::mem;
     use super::*;
 

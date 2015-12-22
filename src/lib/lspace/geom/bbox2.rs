@@ -72,10 +72,7 @@ impl BBox2 {
 // TESTS
 //
 
-#[cfg(test)]
 mod tests {
-    extern crate test;
-
     use std::mem;
     use super::*;
     use geom::vector2::Vector2;

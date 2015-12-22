@@ -50,8 +50,13 @@ impl TElement for RootElement {
         return &self.alloc;
     }
 
-    fn element_req_and_mut_alloc(&mut self) -> (&ElementReq, &mut ElementAlloc) {
-        return (&self.req, &mut self.alloc);
+    /// Update element X allocation
+    fn element_update_x_alloc(&mut self, x_alloc: &LAlloc) {
+        self.alloc.x_alloc.clone_from(x_alloc);
+    }
+    /// Update element Y allocation
+    fn element_update_y_alloc(&mut self, y_alloc: &LAlloc) {
+        self.alloc.y_alloc.clone_from(y_alloc);
     }
 
     fn draw(&self, cairo_ctx: &Context, visible_region: &BBox2) {
@@ -66,7 +71,7 @@ impl TElement for RootElement {
     }
 
     fn allocate_x(&mut self) {
-        self.children[0].get_mut().x_req_and_mut_alloc().1.clone_from(&self.alloc.x_alloc);
+        self.children[0].get_mut().element_update_x_alloc(&self.alloc.x_alloc);
         self.allocate_children_x();
     }
 
@@ -76,7 +81,7 @@ impl TElement for RootElement {
     }
 
     fn allocate_y(&mut self) {
-        self.children[0].get_mut().y_req_and_mut_alloc().1.clone_from(&self.alloc.y_alloc);
+        self.children[0].get_mut().element_update_y_alloc(&self.alloc.y_alloc);
         self.allocate_children_y();
     }
 }
@@ -90,3 +95,4 @@ impl TContainerElement for RootElement {
         return &mut self.children;
     }
 }
+
