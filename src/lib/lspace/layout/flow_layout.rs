@@ -74,20 +74,21 @@ pub fn requisition_x(child_x_reqs: &[&LReq], x_spacing: f64, indentation: FlowIn
 }
 
 pub fn alloc_x(box_x_req: &LReq, box_x_alloc: &LAlloc,
-               child_reqs_and_allocs: &mut [(&LReq, &mut LAlloc)], x_spacing: f64,
-               indentation: FlowIndent) -> Vec<FlowLine> {
+               child_reqs: &[&LReq], x_spacing: f64,
+               indentation: FlowIndent) -> (Vec<LAlloc>, Vec<FlowLine>) {
     if box_x_req.size().size() <= box_x_alloc.alloc_size() {
         let (indent, line_req, line_alloc) = match indentation {
             FlowIndent::First{indent} => (indent, box_x_req.dedent(indent),
                                           box_x_alloc.indent(indent)),
             _ => (0.0, *box_x_req, *box_x_alloc)
         };
-        LAlloc::alloc_linear(child_reqs_and_allocs, box_x_req, line_alloc.pos_in_parent(),
+        let child_allocs = LAlloc::alloc_linear(child_reqs, box_x_req, line_alloc.pos_in_parent(),
                              line_alloc.alloc_size(), line_alloc.ref_point(), x_spacing, None);
-        let line = FlowLine::new_x(indent, 0, child_reqs_and_allocs.len());
-        return vec![line];
+        let line = FlowLine::new_x(indent, 0, child_reqs.len());
+        return (child_allocs, vec![line]);
     } else {
-        let n = child_reqs_and_allocs.len();
+        let n = child_reqs.len();
+        let mut child_allocs = Vec::with_capacity(n);
         let mut lines : Vec<FlowLine> = Vec::new();
         let mut line_i_0 = 0;
         let mut line_x = match indentation {
@@ -102,17 +103,19 @@ pub fn alloc_x(box_x_req: &LReq, box_x_alloc: &LAlloc,
                 // Not the first element in the line
                 x = x + x_spacing;
             }
-            let child_w = child_reqs_and_allocs[i].0.size().size();
+            let child_w = child_reqs[i].size().size();
             x = x + child_w;
 
             if x > box_x_alloc.alloc_size() && i > line_i_0 {
                 let line_alloc = box_x_alloc.indent(line_x);
                 // Record the existing line
                 lines.push(FlowLine::new_x(line_x, line_i_0, i));
-                LAlloc::alloc_linear(&mut child_reqs_and_allocs[line_i_0..i],
+                let line_child_allocs = LAlloc::alloc_linear
+                (&child_reqs[line_i_0..i],
                                      &box_x_req.dedent(line_x), line_alloc.pos_in_parent(),
                                      line_alloc.alloc_size(), line_alloc.ref_point(),
                                      x_spacing, None);
+                child_allocs.extend(line_child_allocs);
                 n_lines = n_lines + 1;
 
                 // Start a new line
@@ -129,12 +132,13 @@ pub fn alloc_x(box_x_req: &LReq, box_x_alloc: &LAlloc,
             let line_alloc = box_x_alloc.indent(line_x);
 
             lines.push(FlowLine::new_x(line_x, line_i_0, n));
-            LAlloc::alloc_linear(&mut child_reqs_and_allocs[line_i_0..n],
+            let line_child_allocs = LAlloc::alloc_linear(&child_reqs[line_i_0..n],
                                  &box_x_req.dedent(line_x), line_alloc.pos_in_parent(),
                                  line_alloc.alloc_size(), line_alloc.ref_point(), x_spacing, None);
+            child_allocs.extend(line_child_allocs);
         }
 
-        return lines;
+        return (child_allocs, lines);
     }
 }
 
@@ -152,33 +156,35 @@ pub fn requisition_y(child_y_reqs: &[&LReq], y_spacing: f64, lines: &mut Vec<Flo
 }
 
 pub fn alloc_y(box_y_req: &LReq, box_y_alloc: &LAlloc,
-               child_y_reqs_and_allocs: &mut [(&LReq, &mut LAlloc)], y_spacing: f64,
-               lines: &mut Vec<FlowLine>) {
-    let mut line_y_allocs : Vec<LAlloc> = (0..lines.len()).map(|_| LAlloc::new_empty()).collect();
-    {
-        // Allocate lines
-        let mut line_y_reqs_and_allocs: Vec<(&LReq, &mut LAlloc)> =
-                lines.iter().zip(line_y_allocs.iter_mut()).map(|p| (&p.0.y_req, p.1)).collect();
-        LAlloc::alloc_linear(&mut line_y_reqs_and_allocs, box_y_req,
-                             box_y_alloc.pos_in_parent(), box_y_alloc.alloc_size(),
-                             box_y_alloc.ref_point(), y_spacing, None);
+               child_reqs: &[&LReq], y_spacing: f64,
+               lines: &mut Vec<FlowLine>) -> Vec<LAlloc> {
+    // Allocate lines
+    let line_y_allocs = {
+        let line_y_reqs: Vec<&LReq> = lines.iter().map(|l| &l.y_req).collect();
+        LAlloc::alloc_linear(&line_y_reqs, box_y_req,
+            box_y_alloc.pos_in_parent(), box_y_alloc.alloc_size(),
+            box_y_alloc.ref_point(), y_spacing, None)
 
-        // Allocate children
-        for l in 0..lines.len() {
-            let line = &lines[l];
-            let line_y_alloc = &line_y_reqs_and_allocs[l].1;
-            for i in line.start..line.end {
-                child_y_reqs_and_allocs[i].1.alloc_from_region(child_y_reqs_and_allocs[i].0,
-                                                    line_y_alloc.pos_in_parent(),
-                                                    line_y_alloc.alloc_size(),
-                                                    line_y_alloc.ref_point());
-            }
+    };
+
+    // Allocate children
+    let mut child_allocs = Vec::with_capacity(child_reqs.len());
+    for l in 0..lines.len() {
+        let line = &lines[l];
+        let line_y_alloc = &line_y_allocs[l];
+        for i in line.start..line.end {
+            let child_alloc = LAlloc::alloced_from_region(child_reqs[i],
+                                                line_y_alloc.pos_in_parent(),
+                                                line_y_alloc.alloc_size(),
+                                                line_y_alloc.ref_point());
+            child_allocs.push(child_alloc);
         }
     }
 
     for l in 0..lines.len() {
         lines[l].pos_y_in_parent = line_y_allocs[l].pos_in_parent();
     }
+    return child_allocs;
 }
 
 
@@ -203,34 +209,18 @@ mod tests {
         let n = x_reqs.len();
         assert_eq!(n, y_reqs.len());
 
-        let mut x_allocs : Vec<LAlloc> = (0..n).map(|_| LAlloc::new_empty()).collect();
-        let mut y_allocs : Vec<LAlloc> = (0..n).map(|_| LAlloc::new_empty()).collect();
+        let box_x_req = requisition_x(x_reqs, x_spacing, indentation);
+        let box_x_alloc = LAlloc::new(0.0, width, width);
 
-        let (box_x_req, box_y_req, lines) = {
-            let mut x_pairs: Vec<(&LReq, &mut LAlloc)> = Vec::new();
-            let mut y_pairs: Vec<(&LReq, &mut LAlloc)> = Vec::new();
-            for pair in x_reqs.iter().zip(x_allocs.iter_mut()) {
-                x_pairs.push((*pair.0, pair.1));
-            }
-            for pair in y_reqs.iter().zip(y_allocs.iter_mut()) {
-                y_pairs.push((*pair.0, pair.1));
-            }
+        let mut allocs_and_lines = alloc_x(&box_x_req, &box_x_alloc, &x_reqs,
+                                x_spacing, indentation);
 
-            let box_x_req = requisition_x(x_reqs, x_spacing, indentation);
-            let box_x_alloc = LAlloc::new(0.0, width, width);
+        let box_y_req = {requisition_y(y_reqs, y_spacing, &mut allocs_and_lines.1)};
+        let box_y_alloc = LAlloc::new_from_req(&box_y_req, 0.0);
 
-            let mut lines = alloc_x(&box_x_req, &box_x_alloc, &mut x_pairs,
-                                    x_spacing, indentation);
+        let y_allocs = {alloc_y(&box_y_req, &box_y_alloc, &y_reqs, y_spacing, &mut allocs_and_lines.1)};
 
-            let box_y_req = requisition_y(y_reqs, y_spacing, &mut lines);
-            let box_y_alloc = LAlloc::new_from_req(&box_y_req, 0.0);
-
-            alloc_y(&box_y_req, &box_y_alloc, &mut y_pairs, y_spacing, &mut lines);
-
-            (box_x_req, box_y_req, lines)
-        };
-
-        return (box_x_req, box_y_req, x_allocs, y_allocs, lines);
+        return (box_x_req, box_y_req, allocs_and_lines.0, y_allocs, allocs_and_lines.1);
     }
 
     #[test]
@@ -450,9 +440,7 @@ mod tests {
             children.push(LBox::new(LReq::new(size_x, flex_x), LReq::new(size_y, flex_y)))
         }
 
-        let mut child_refs : Vec<&mut LBox> = children.iter_mut().collect();
-        let (child_x_req_refs, mut child_x_alloc_and_req_refs, child_y_req_refs, mut child_y_alloc_and_req_refs) =
-                LBox::reqs_and_mut_allocs(&mut child_refs);
+//        let mut child_refs : Vec<&mut LBox> = children.iter_mut().collect();
 
         for _ in 0..num_parents {
             parents.push(LBox::new_empty());
@@ -461,18 +449,32 @@ mod tests {
         bench.iter(|| {
             for _ in 0..num_repeats {
                 for i in 0..num_parents {
-                    parents[i].x_req = requisition_x(&child_x_req_refs, 0.0, FlowIndent::NoIndent);
-                    parents[i].x_alloc = LAlloc::new(0.0, 500.0, 500.0);
+                    let mut x_allocs_and_lines: (Vec<LAlloc>, Vec<FlowLine>) = {
+                        let child_x_req_refs = LBox::x_reqs(&children);
+                        parents[i].x_req = requisition_x(&child_x_req_refs, 0.0, FlowIndent::NoIndent);
+                        parents[i].x_alloc = LAlloc::new(0.0, 500.0, 500.0);
 
-                    let mut lines = alloc_x(&parents[i].x_req, &parents[i].x_alloc,
-                            &mut child_x_alloc_and_req_refs, 0.0, FlowIndent::NoIndent);
 
-                    parents[i].y_req = requisition_y(&child_y_req_refs, 0.0, &mut lines);
-                    parents[i].y_alloc = LAlloc::new_from_req(&parents[i].y_req, 0.0);
+                        alloc_x(&parents[i].x_req, &parents[i].x_alloc,
+                                &child_x_req_refs, 0.0, FlowIndent::NoIndent)
+                    };
+                    {
+                        LBox::update_x_allocs(&mut children, &x_allocs_and_lines.0);
+                    }
 
-                    alloc_y(&parents[i].y_req, &parents[i].y_alloc,
-                            &mut child_y_alloc_and_req_refs, 0.0,
-                            &mut lines);
+                    let y_allocs = {
+                        let child_y_req_refs = LBox::y_reqs(&children);
+                        parents[i].y_req = requisition_y(&child_y_req_refs, 0.0, &mut x_allocs_and_lines.1);
+                        parents[i].y_alloc = LAlloc::new_from_req(&parents[i].y_req, 0.0);
+
+                        alloc_y(&parents[i].y_req, &parents[i].y_alloc,
+                                &child_y_req_refs, 0.0,
+                                &mut x_allocs_and_lines.1)
+                    };
+                    {
+                        LBox::update_y_allocs(&mut children, &y_allocs
+                        );
+                    }
                 }
             }
         });

@@ -40,8 +40,13 @@ impl TElement for FlowElement {
         return &self.alloc;
     }
 
-    fn element_req_and_mut_alloc(&mut self) -> (&ElementReq, &mut ElementAlloc) {
-        return (&self.req, &mut self.alloc);
+    /// Update element X allocation
+    fn element_update_x_alloc(&mut self, x_alloc: &LAlloc) {
+        self.alloc.x_alloc.clone_from(x_alloc);
+    }
+    /// Update element Y allocation
+    fn element_update_y_alloc(&mut self, y_alloc: &LAlloc) {
+        self.alloc.y_alloc.clone_from(y_alloc);
     }
 
     fn draw(&self, cairo_ctx: &Context, visible_region: &BBox2) {
@@ -53,18 +58,23 @@ impl TElement for FlowElement {
         self.update_children_x_req();
         let child_refs: Vec<ElemBorrow> = self.children.iter().map(|c| c.get()).collect();
         let child_x_reqs: Vec<&LReq> = child_refs.iter().map(|c| c.x_req()).collect();
-        self.req.x_req = flow_layout::requisition_x(&child_x_reqs, self.x_spacing, self.indentation);
+        self.req.x_req = flow_layout::requisition_x(&child_x_reqs, self.x_spacing,
+                                                    self.indentation);
     }
 
     fn allocate_x(&mut self) {
         {
-            let mut child_refs: Vec<ElemBorrowMut> = self.children.iter_mut().map(|c| c.get_mut()).collect();
-            let mut x_pairs: Vec<(&LReq, &mut LAlloc)> = child_refs.iter_mut().map(
-                    |c| c.x_req_and_mut_alloc()).collect();
-            self.lines = flow_layout::alloc_x(&self.req.x_req,
-                    &self.alloc.x_alloc.without_position(),
-                    &mut x_pairs, self.x_spacing, self.indentation);
-
+            let mut child_refs: Vec<ElemBorrowMut> = self.children.iter().map(
+                        |c| c.get_mut()).collect();
+            let allocs_and_lines = {
+                let x_reqs: Vec<&LReq> = child_refs.iter().map(|c| c.x_req()).collect();
+                flow_layout::alloc_x(&self.req.x_req, &self.alloc.x_alloc.without_position(),
+                                     &x_reqs, self.x_spacing, self.indentation)
+            };
+            self.lines = allocs_and_lines.1;
+            for c in child_refs.iter_mut().zip(allocs_and_lines.0.iter()) {
+                c.0.element_update_x_alloc(c.1);
+            }
         }
         self.allocate_children_x();
     }
@@ -73,17 +83,23 @@ impl TElement for FlowElement {
         self.update_children_y_req();
         let child_refs: Vec<ElemBorrow> = self.children.iter().map(|c| c.get()).collect();
         let child_y_reqs: Vec<&LReq> = child_refs.iter().map(|c| c.y_req()).collect();
-        self.req.y_req = flow_layout::requisition_y(&child_y_reqs, self.y_spacing, &mut self.lines);
+        self.req.y_req = flow_layout::requisition_y(&child_y_reqs, self.y_spacing,
+                                                    &mut self.lines);
     }
 
     fn allocate_y(&mut self) {
         {
-            let mut child_refs: Vec<ElemBorrowMut> = self.children.iter_mut().map(|c| c.get_mut()).collect();
-            let mut y_pairs: Vec<(&LReq, &mut LAlloc)> = child_refs.iter_mut().map(
-                    |c| c.y_req_and_mut_alloc()).collect();
-            flow_layout::alloc_y(&self.req.y_req,
-                &self.alloc.y_alloc.without_position(),
-                &mut y_pairs, self.y_spacing, &mut self.lines);
+            let mut child_refs: Vec<ElemBorrowMut> = self.children.iter().map(
+                        |c| c.get_mut()).collect();
+            let y_allocs = {
+                let y_reqs: Vec<&LReq> = child_refs.iter().map(|c| c.y_req()).collect();
+                flow_layout::alloc_y(&self.req.y_req,
+                    &self.alloc.y_alloc.without_position(),
+                    &y_reqs, self.y_spacing, &mut self.lines)
+            };
+            for c in child_refs.iter_mut().zip(y_allocs.iter()) {
+                c.0.element_update_y_alloc(c.1);
+            }
         }
         self.allocate_children_y();
     }

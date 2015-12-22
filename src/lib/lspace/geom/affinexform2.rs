@@ -202,10 +202,7 @@ impl <'a, 'b> Mul<&'b AffineXform2> for &'a AffineXform2 {
 // TESTS
 //
 
-#[cfg(test)]
 mod tests {
-    extern crate test;
-
     use std::mem;
     use super::*;
     use geom::vector2::Vector2;

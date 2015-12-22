@@ -27,7 +27,7 @@ impl ElementRef {
         return self.x.borrow();
     }
 
-    pub fn get_mut(&mut self) -> ElemBorrowMut {
+    pub fn get_mut(&self) -> ElemBorrowMut {
         return self.x.borrow_mut();
     }
 }
@@ -38,8 +38,10 @@ pub trait TElement {
     fn element_req(&self) -> &ElementReq;
     /// Acquire reference to the element layout allocation
     fn element_alloc(&self) -> &ElementAlloc;
-    /// Acquire reference to element layout requisition and mutable allocation
-    fn element_req_and_mut_alloc(&mut self) -> (&ElementReq, &mut ElementAlloc);
+    /// Update element X allocation
+    fn element_update_x_alloc(&mut self, x_alloc: &LAlloc);
+    /// Update element Y allocation
+    fn element_update_y_alloc(&mut self, y_alloc: &LAlloc);
 
     /// Acquire reference to element layout X requisition
     fn x_req(&self) -> &LReq {
@@ -49,12 +51,6 @@ pub trait TElement {
     /// Acquire reference to element layout X allocation
     fn x_alloc(&self) -> &LAlloc {
         return &self.element_alloc().x_alloc;
-    }
-
-    /// Acquire reference to element layout X requisition and mutable X allocation
-    fn x_req_and_mut_alloc(&mut self) -> (&LReq, &mut LAlloc) {
-        let ra = self.element_req_and_mut_alloc();
-        return (&ra.0.x_req, &mut ra.1.x_alloc);
     }
 
     /// Acquire reference to element layout Y requisition
@@ -67,30 +63,27 @@ pub trait TElement {
         return &self.element_alloc().y_alloc;
     }
 
-    /// Acquire reference to element layout Y requisition and mutable Y allocation
-    fn y_req_and_mut_alloc(&mut self) -> (&LReq, &mut LAlloc) {
-        let ra = self.element_req_and_mut_alloc();
-        return (&ra.0.y_req, &mut ra.1.y_alloc);
-    }
 
-
-    /// Paint the element content that is contributed by the element itself, as opposed to child
-    /// elements.
+    /// Paint content contributed by `self`
     fn draw_self(&self, cairo_ctx: &Context, visible_region: &BBox2) {
     }
 
-    /// Paint the element along with its children
+    /// Paint
     fn draw(&self, cairo_ctx: &Context, visible_region: &BBox2);
 
     /// Update layout: X requisition
-    fn update_x_req(&mut self);
+    fn update_x_req(&mut self) {
+    }
 
     /// Update layout: X allocation
-    fn allocate_x(&mut self);
+    fn allocate_x(&mut self) {
+    }
 
     /// Update layout: Y requisition
-    fn update_y_req(&mut self);
+    fn update_y_req(&mut self) {
+    }
 
     /// Update layout: Y allocation
-    fn allocate_y(&mut self);
+    fn allocate_y(&mut self) {
+    }
 }

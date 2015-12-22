@@ -1,7 +1,5 @@
 #![feature(test)]
-#![feature(slice_patterns)]
 #![feature(convert)]
-#![feature(associated_type_defaults)]
 
 extern crate cairo;
 extern crate cairo_sys;

@@ -23,39 +23,27 @@ impl LBox {
     }
 
 
-    pub fn x_reqs<'a>(boxes: &'a mut [&'a mut LBox]) -> Vec<&'a LReq> {
+    pub fn x_reqs<'a>(boxes: &'a [LBox]) -> Vec<&'a LReq> {
         return boxes.iter().map(|b| &b.x_req).collect();
     }
 
-    pub fn y_reqs<'a>(boxes: &'a mut [&'a mut LBox]) -> Vec<&'a LReq> {
+    pub fn y_reqs<'a>(boxes: &'a [LBox]) -> Vec<&'a LReq> {
         return boxes.iter().map(|b| &b.y_req).collect();
     }
 
-    pub fn x_reqs_and_mut_allocs<'a>(boxes: &'a mut [&'a mut LBox]) -> Vec<(&'a LReq, &'a mut LAlloc)> {
-        return boxes.iter_mut().map(|b| (&b.x_req, &mut b.x_alloc)).collect();
-    }
-
-    pub fn y_reqs_and_mut_allocs<'a>(boxes: &'a mut [&'a mut LBox]) -> Vec<(&'a LReq, &'a mut LAlloc)> {
-        return boxes.iter_mut().map(|b| (&b.y_req, &mut b.y_alloc)).collect();
-    }
-
-    pub fn reqs_and_mut_allocs<'a>(boxes: &'a mut [&'a mut LBox]) ->
-                (Vec<&'a LReq>, Vec<(&'a LReq, &'a mut LAlloc)>, Vec<&'a LReq>, Vec<(&'a LReq, &'a mut LAlloc)>) {
+    pub fn update_x_allocs(boxes: &mut [LBox], x_allocs: &[LAlloc]) {
         let n = boxes.len();
-        let mut everything = boxes.iter_mut().map(|b| (&mut b.x_alloc, &b.x_req, &mut b.y_alloc, &b.y_req));
-        let mut x_reqs : Vec<&LReq> = Vec::with_capacity(n);
-        let mut y_reqs : Vec<&LReq> = Vec::with_capacity(n);
-        let mut x_reqs_and_allocs : Vec<(&LReq, &mut LAlloc)> = Vec::with_capacity(n);
-        let mut y_reqs_and_allocs : Vec<(&LReq, &mut LAlloc)> = Vec::with_capacity(n);
-
-        for (mut x_alloc, x_req, mut y_alloc, y_req) in everything {
-            x_reqs.push(x_req);
-            y_reqs.push(y_req);
-            x_reqs_and_allocs.push((x_req, x_alloc));
-            y_reqs_and_allocs.push((y_req, y_alloc));
+        assert!(n == x_allocs.len());
+        for i in 0..n {
+            boxes[i].x_alloc = x_allocs[i];
         }
-
-        return (x_reqs, x_reqs_and_allocs, y_reqs, y_reqs_and_allocs);
     }
 
+    pub fn update_y_allocs(boxes: &mut [LBox], y_allocs: &[LAlloc]) {
+        let n = boxes.len();
+        assert!(n == y_allocs.len());
+        for i in 0..n {
+            boxes[i].y_alloc = y_allocs[i];
+        }
+    }
 }
