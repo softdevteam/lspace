@@ -163,10 +163,7 @@ impl <'a> Neg for &'a Colour {
 // TESTS
 //
 
-#[cfg(test)]
 mod tests {
-    extern crate test;
-
     use std::mem;
     use super::*;
 
