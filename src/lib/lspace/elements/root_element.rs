@@ -3,18 +3,19 @@ use cairo::Context;
 use layout::lalloc::LAlloc;
 use geom::bbox2::BBox2;
 
-use elements::element::{ElementReq, ElementAlloc, TElementLayout, TElement, ElementChildRef};
+use elements::element_layout::{ElementReq, ElementAlloc};
+use elements::element::{TElement, ElementRef};
 use elements::container::TContainerElement;
 
 
 pub struct RootElement {
     req: ElementReq,
     alloc: ElementAlloc,
-    children: Vec<ElementChildRef>,
+    children: Vec<ElementRef>,
 }
 
 impl RootElement {
-    pub fn new(child: ElementChildRef) -> RootElement {
+    pub fn new(child: ElementRef) -> RootElement {
         return RootElement{req: ElementReq::new(), alloc: ElementAlloc::new(),
                            children: vec![child]};
     }
@@ -40,7 +41,7 @@ impl RootElement {
     }
 }
 
-impl TElementLayout for RootElement {
+impl TElement for RootElement {
     fn element_req(&self) -> &ElementReq {
         return &self.req;
     }
@@ -52,9 +53,7 @@ impl TElementLayout for RootElement {
     fn element_req_and_mut_alloc(&mut self) -> (&ElementReq, &mut ElementAlloc) {
         return (&self.req, &mut self.alloc);
     }
-}
 
-impl TElement for RootElement {
     fn draw(&self, cairo_ctx: &Context, visible_region: &BBox2) {
         self.draw_self(cairo_ctx, visible_region);
         self.draw_children(cairo_ctx, visible_region);
@@ -83,11 +82,11 @@ impl TElement for RootElement {
 }
 
 impl TContainerElement for RootElement {
-    fn children<'a>(&'a self) -> &'a Vec<ElementChildRef> {
+    fn children<'a>(&'a self) -> &'a Vec<ElementRef> {
         return &self.children;
     }
 
-    fn children_mut<'a>(&'a mut self) -> &'a mut Vec<ElementChildRef> {
+    fn children_mut<'a>(&'a mut self) -> &'a mut Vec<ElementRef> {
         return &mut self.children;
     }
 }

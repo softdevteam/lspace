@@ -3,12 +3,12 @@ use cairo::Context;
 use geom::vector2::Vector2;
 use geom::bbox2::BBox2;
 
-use elements::element::{TElement, ElementChildRef};
+use elements::element::{TElement, ElementRef};
 
 
 pub trait TContainerElement : TElement {
-    fn children<'a>(&'a self) -> &'a Vec<ElementChildRef>;
-    fn children_mut<'a>(&'a mut self) -> &'a mut Vec<ElementChildRef>;
+    fn children<'a>(&'a self) -> &'a Vec<ElementRef>;
+    fn children_mut<'a>(&'a mut self) -> &'a mut Vec<ElementRef>;
 
     fn draw_children(&self, cairo_ctx: &Context, visible_region: &BBox2) {
         for chref in self.children() {

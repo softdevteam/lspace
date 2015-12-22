@@ -6,7 +6,7 @@ use cairo::Context;
 
 use layout::lreq::LReq;
 
-use elements::element::ElementReq;
+use elements::element_layout::ElementReq;
 use elements::text_element::{TextReqKey, TextStyleParams};
 
 
