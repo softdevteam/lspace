@@ -27,7 +27,7 @@ impl ElementRef {
         return self.x.borrow();
     }
 
-    pub fn get_mut(&mut self) -> ElemBorrowMut {
+    pub fn get_mut(&self) -> ElemBorrowMut {
         return self.x.borrow_mut();
     }
 }
@@ -38,8 +38,10 @@ pub trait TElement {
     fn element_req(&self) -> &ElementReq;
     /// Acquire reference to the element layout allocation
     fn element_alloc(&self) -> &ElementAlloc;
-    /// Acquire reference to element layout requisition and mutable allocation
-    fn element_req_and_mut_alloc(&mut self) -> (&ElementReq, &mut ElementAlloc);
+    /// Update element X allocation
+    fn element_update_x_alloc(&mut self, x_alloc: &LAlloc);
+    /// Update element Y allocation
+    fn element_update_y_alloc(&mut self, y_alloc: &LAlloc);
 
     /// Acquire reference to element layout X requisition
     fn x_req(&self) -> &LReq {
@@ -51,12 +53,6 @@ pub trait TElement {
         return &self.element_alloc().x_alloc;
     }
 
-    /// Acquire reference to element layout X requisition and mutable X allocation
-    fn x_req_and_mut_alloc(&mut self) -> (&LReq, &mut LAlloc) {
-        let ra = self.element_req_and_mut_alloc();
-        return (&ra.0.x_req, &mut ra.1.x_alloc);
-    }
-
     /// Acquire reference to element layout Y requisition
     fn y_req(&self) -> &LReq {
         return &self.element_req().y_req;
@@ -65,12 +61,6 @@ pub trait TElement {
     /// Acquire reference to element layout Y allocation
     fn y_alloc(&self) -> &LAlloc {
         return &self.element_alloc().y_alloc;
-    }
-
-    /// Acquire reference to element layout Y requisition and mutable Y allocation
-    fn y_req_and_mut_alloc(&mut self) -> (&LReq, &mut LAlloc) {
-        let ra = self.element_req_and_mut_alloc();
-        return (&ra.0.y_req, &mut ra.1.y_alloc);
     }
 
 
