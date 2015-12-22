@@ -7,112 +7,90 @@ use layout::lreq::LReq;
 use layout::lalloc::LAlloc;
 use geom::bbox2::BBox2;
 
-const LAYOUT_FLAG_X_REQ_DIRTY: u8       = 0b00000001;
-const LAYOUT_FLAG_Y_REQ_DIRTY: u8       = 0b00000010;
-const LAYOUT_FLAG_X_ALLOC_DIRTY: u8     = 0b00000100;
-const LAYOUT_FLAG_Y_ALLOC_DIRTY: u8     = 0b00001000;
-const LAYOUT_FLAGS_ALL_DIRTY: u8        = 0b00001111;
-const LAYOUT_FLAGS_ALL_CLEAN: u8        = 0b00000000;
+use elements::element_layout::{ElementReq, ElementAlloc};
 
 
-pub struct ElementChildRef {
+pub type ElemBorrow<'a> = Ref<'a, Box<TElement>>;
+pub type ElemBorrowMut<'a> = RefMut<'a, Box<TElement>>;
+
+
+pub struct ElementRef {
     x: Rc<RefCell<Box<TElement>>>
 }
 
-
-impl ElementChildRef {
-    pub fn new<T: TElement + 'static>(x: T) -> ElementChildRef {
-        return ElementChildRef{x: Rc::new(RefCell::new(Box::new(x)))};
+impl ElementRef {
+    pub fn new<T: TElement + 'static>(x: T) -> ElementRef {
+        return ElementRef{x: Rc::new(RefCell::new(Box::new(x)))};
     }
 
-    pub fn get(&self) -> Ref<Box<TElement>> {
+    pub fn get(&self) -> ElemBorrow {
         return self.x.borrow();
     }
 
-    pub fn get_mut(&mut self) -> RefMut<Box<TElement>> {
+    pub fn get_mut(&mut self) -> ElemBorrowMut {
         return self.x.borrow_mut();
     }
 }
 
 
-pub struct ElementReq {
-    pub x_req: LReq,
-    pub y_req: LReq,
-}
-
-impl ElementReq {
-    pub fn new() -> ElementReq {
-        return ElementReq{x_req: LReq::new_empty(), y_req: LReq::new_empty()};
-    }
-
-    pub fn new_from_reqs(x_req: LReq, y_req: LReq) -> ElementReq {
-        return ElementReq{x_req: x_req, y_req: y_req};
-    }
-}
-
-
-pub struct ElementAlloc {
-    pub x_alloc: LAlloc,
-    pub y_alloc: LAlloc,
-    pub layout_flags: u8,
-}
-
-impl ElementAlloc {
-    pub fn new() -> ElementAlloc {
-        return ElementAlloc{x_alloc: LAlloc::new_empty(), y_alloc: LAlloc::new_empty(),
-                            layout_flags: LAYOUT_FLAGS_ALL_CLEAN};
-    }
-}
-
-
-pub trait TElementLayout {
+pub trait TElement {
+    /// Acquire reference to the element layout requisition
     fn element_req(&self) -> &ElementReq;
+    /// Acquire reference to the element layout allocation
     fn element_alloc(&self) -> &ElementAlloc;
+    /// Acquire reference to element layout requisition and mutable allocation
     fn element_req_and_mut_alloc(&mut self) -> (&ElementReq, &mut ElementAlloc);
 
+    /// Acquire reference to element layout X requisition
     fn x_req(&self) -> &LReq {
         return &self.element_req().x_req;
     }
 
+    /// Acquire reference to element layout X allocation
     fn x_alloc(&self) -> &LAlloc {
         return &self.element_alloc().x_alloc;
     }
 
+    /// Acquire reference to element layout X requisition and mutable X allocation
     fn x_req_and_mut_alloc(&mut self) -> (&LReq, &mut LAlloc) {
         let ra = self.element_req_and_mut_alloc();
         return (&ra.0.x_req, &mut ra.1.x_alloc);
     }
 
+    /// Acquire reference to element layout Y requisition
     fn y_req(&self) -> &LReq {
         return &self.element_req().y_req;
     }
 
+    /// Acquire reference to element layout Y allocation
     fn y_alloc(&self) -> &LAlloc {
         return &self.element_alloc().y_alloc;
     }
 
+    /// Acquire reference to element layout Y requisition and mutable Y allocation
     fn y_req_and_mut_alloc(&mut self) -> (&LReq, &mut LAlloc) {
         let ra = self.element_req_and_mut_alloc();
         return (&ra.0.y_req, &mut ra.1.y_alloc);
     }
-}
 
 
-pub trait TElement : TElementLayout {
+    /// Paint the element content that is contributed by the element itself, as opposed to child
+    /// elements.
     fn draw_self(&self, cairo_ctx: &Context, visible_region: &BBox2) {
     }
 
+    /// Paint the element along with its children
     fn draw(&self, cairo_ctx: &Context, visible_region: &BBox2);
 
-    fn update_x_req(&mut self) {
-    }
+    /// Update layout: X requisition
+    fn update_x_req(&mut self);
 
-    fn allocate_x(&mut self) {
-    }
+    /// Update layout: X allocation
+    fn allocate_x(&mut self);
 
-    fn update_y_req(&mut self) {
-    }
+    /// Update layout: Y requisition
+    fn update_y_req(&mut self);
 
-    fn allocate_y(&mut self) {
-    }
+    /// Update layout: Y allocation
+    fn allocate_y(&mut self);
 }

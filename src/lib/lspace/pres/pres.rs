@@ -4,7 +4,7 @@ use std::cell::RefCell;
 
 use cairo::Context;
 
-use elements::element::ElementChildRef;
+use elements::element::ElementRef;
 use elements::element_ctx::ElementContext;
 
 
@@ -24,5 +24,5 @@ impl <'a> PresBuildCtx<'a> {
 
 
 pub trait TPres {
-    fn build(&self, pres_ctx: &PresBuildCtx) -> ElementChildRef;
+    fn build(&self, pres_ctx: &PresBuildCtx) -> ElementRef;
 }

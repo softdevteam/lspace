@@ -10,8 +10,9 @@ use cairo_sys::enums::{FontSlant, FontWeight};
 use layout::lalloc::LAlloc;
 use geom::bbox2::BBox2;
 use geom::colour::{Colour, BLACK};
+use elements::element_layout::{ElementReq, ElementAlloc};
 use elements::element_ctx::{ElementContext};
-use elements::element::{ElementReq, ElementAlloc, TElementLayout, TElement};
+use elements::element::{TElement};
 
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -119,7 +120,7 @@ impl TextElement {
     }
 }
 
-impl TElementLayout for TextElement {
+impl TElement for TextElement {
     fn element_req(&self) -> &ElementReq {
         return &*self.req;
     }
@@ -131,9 +132,7 @@ impl TElementLayout for TextElement {
     fn element_req_and_mut_alloc(&mut self) -> (&ElementReq, &mut ElementAlloc) {
         return (&*self.req, &mut self.alloc);
     }
-}
 
-impl TElement for TextElement {
     fn draw_self(&self, cairo_ctx: &Context, visible_region: &BBox2) {
         let y = match self.alloc.y_alloc.ref_point() {
             None => 0.0,
