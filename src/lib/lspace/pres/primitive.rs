@@ -22,7 +22,7 @@ impl TPres for Text {
     fn build(&self, pres_ctx: &PresBuildCtx) -> ElementRef {
         let elem = text_element::TextElement::new(self.text.clone(), self.style.clone(),
                                                   pres_ctx.cairo_ctx, &pres_ctx.elem_ctx);
-        return ElementRef::new(elem);
+        return Rc::new(elem);
     }
 }
 
@@ -41,7 +41,7 @@ impl TPres for Column {
     fn build(&self, pres_ctx: &PresBuildCtx) -> ElementRef {
         let child_elems = self.children.iter().map(|p| p.build(pres_ctx)).collect();
         let elem = column::ColumnElement::new(child_elems, 0.0);
-        return ElementRef::new(elem);
+        return Rc::new(elem);
     }
 }
 
@@ -60,7 +60,7 @@ impl TPres for Row {
     fn build(&self, pres_ctx: &PresBuildCtx) -> ElementRef {
         let child_elems = self.children.iter().map(|p| p.build(pres_ctx)).collect();
         let elem = row::RowElement::new(child_elems, 0.0);
-        return ElementRef::new(elem);
+        return Rc::new(elem);
     }
 }
 
@@ -79,7 +79,7 @@ impl TPres for Flow {
     fn build(&self, pres_ctx: &PresBuildCtx) -> ElementRef {
         let child_elems = self.children.iter().map(|p| p.build(pres_ctx)).collect();
         let elem = flow::FlowElement::new(child_elems, 0.0, 0.0, flow_layout::FlowIndent::NoIndent);
-        return ElementRef::new(elem);
+        return Rc::new(elem);
     }
 }
 

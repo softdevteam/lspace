@@ -11,6 +11,7 @@ pub enum FlowIndent {
 }
 
 
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct FlowLine {
     y_req: LReq,
     pos_x_in_parent: f64,
