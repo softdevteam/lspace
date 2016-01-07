@@ -13,7 +13,7 @@ cairo-rs = { git = "https://github.com/gtk-rs/cairo" }
 cairo-sys-rs = { git = "https://github.com/gtk-rs/cairo" }
 
 [dev-dependencies]
-hyper = "0.6"
+hyper = "*"
 regex = "*"
 
 [profile.bench]
