@@ -1,5 +1,7 @@
 use cairo::Context;
 
+use std::cell::Ref;
+
 use geom::vector2::Vector2;
 use geom::bbox2::BBox2;
 
@@ -7,18 +9,16 @@ use elements::element::{TElement, ElementRef};
 
 
 pub trait TContainerElement : TElement {
-    fn children<'a>(&'a self) -> &'a Vec<ElementRef>;
-    fn children_mut<'a>(&'a mut self) -> &'a mut Vec<ElementRef>;
+    fn children(&self) -> Ref<Vec<ElementRef>>;
 
     fn draw_children(&self, cairo_ctx: &Context, visible_region: &BBox2) {
-        for chref in self.children() {
-            let child = chref.get();
-            let xa = child.x_alloc();
-            let ya = child.y_alloc();
-            let child_bbox = BBox2::from_allocs(xa, ya);
+        for child in self.children().iter() {
+            let a = child.element_alloc();
+            let child_bbox = BBox2::from_allocs(&a.x_alloc, &a.y_alloc);
             if child_bbox.intersects(visible_region) {
-                let dx = xa.pos_in_parent();
-                let dy = ya.pos_in_parent();
+                let dx = a.x_alloc.pos_in_parent();
+                let dy = a.y_alloc
+                .pos_in_parent();
                 let visible_region_child_space = visible_region.offset(&Vector2::new(-dx, -dy));
                 cairo_ctx.save();
                 cairo_ctx.translate(dx, dy);
@@ -28,27 +28,27 @@ pub trait TContainerElement : TElement {
         }
     }
 
-    fn update_children_x_req(&mut self) {
-        for child in self.children_mut() {
-            child.get_mut().update_x_req();
+    fn update_children_x_req(&self) {
+        for child in self.children().iter() {
+            child.update_x_req();
         }
     }
 
-    fn update_children_y_req(&mut self) {
-        for child in self.children_mut() {
-            child.get_mut().update_y_req();
+    fn update_children_y_req(&self) {
+        for child in self.children().iter() {
+            child.update_y_req();
         }
     }
 
-    fn allocate_children_x(&mut self) {
-        for child in self.children_mut() {
-            child.get_mut().allocate_x();
+    fn allocate_children_x(&self) {
+        for child in self.children().iter() {
+            child.allocate_x();
         }
     }
 
-    fn allocate_children_y(&mut self) {
-        for child in self.children_mut() {
-            child.get_mut().allocate_y();
+    fn allocate_children_y(&self) {
+        for child in self.children().iter() {
+            child.allocate_y();
         }
     }
 }

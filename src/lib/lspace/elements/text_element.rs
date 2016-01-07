@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use std::cell::RefCell;
+use std::cell::{RefCell, Ref};
 use std::string::String;
 use std::hash::{Hash};
 use std::mem::transmute;
@@ -101,70 +101,77 @@ pub type TextReqKey = (String, TextWeight, TextSlant, i64, String);
 
 
 
-
-pub struct TextElement {
+struct TextElementMut {
     req: Rc<ElementReq>,
-    style: Rc<TextStyleParams>,
     alloc: ElementAlloc,
     text: String,
+}
+
+
+pub struct TextElement {
+    style: Rc<TextStyleParams>,
+    m: RefCell<TextElementMut>,
 }
 
 impl TextElement {
     pub fn new(text: String, style: Rc<TextStyleParams>, cairo_ctx: &Context,
                elem_ctx: &RefCell<ElementContext>) -> TextElement {
         let req = elem_ctx.borrow_mut().text_shared_req(style.clone(), text.clone(), cairo_ctx);
-        return TextElement{text: text,
-                           req: req,
-                           style: style,
-                           alloc: ElementAlloc::new()};
+        return TextElement{style: style,
+                           m: RefCell::new(TextElementMut{
+                                req: req,
+                                alloc: ElementAlloc::new(),
+                                text: text}),
+                           };
     }
 }
 
 impl TElement for TextElement {
-    fn element_req(&self) -> &ElementReq {
-        return &*self.req;
+    fn element_req(&self) -> Ref<ElementReq> {
+        return Ref::map(self.m.borrow(), |m| &(*m.req));
     }
 
-    fn element_alloc(&self) -> &ElementAlloc {
-        return &self.alloc;
+    fn element_alloc(&self) -> Ref<ElementAlloc> {
+        return Ref::map(self.m.borrow(), |m| &m.alloc);
     }
 
     /// Update element X allocation
-    fn element_update_x_alloc(&mut self, x_alloc: &LAlloc) {
-        self.alloc.x_alloc.clone_from(x_alloc);
+    fn element_update_x_alloc(&self, x_alloc: &LAlloc) {
+        self.m.borrow_mut().alloc.x_alloc.clone_from(x_alloc);
     }
     /// Update element Y allocation
-    fn element_update_y_alloc(&mut self, y_alloc: &LAlloc) {
-        self.alloc.y_alloc.clone_from(y_alloc);
+    fn element_update_y_alloc(&self, y_alloc: &LAlloc) {
+        self.m.borrow_mut().alloc.y_alloc.clone_from(y_alloc);
     }
 
     fn draw_self(&self, cairo_ctx: &Context, visible_region: &BBox2) {
-        let y = match self.alloc.y_alloc.ref_point() {
+        let mm = self.m.borrow();
+        let y = match mm.alloc.y_alloc.ref_point() {
             None => 0.0,
             Some(ref_point) => ref_point
         };
         cairo_ctx.move_to(0.0, y);
         self.style.apply(cairo_ctx);
-        cairo_ctx.show_text(self.text.as_str());
+        cairo_ctx.show_text(mm.text.as_str());
     }
 
     fn draw(&self, cairo_ctx: &Context, visible_region: &BBox2) {
         self.draw_self(cairo_ctx, visible_region);
     }
 
-    fn update_x_req(&mut self) {
+    fn update_x_req(&self) {
         // Nothing to do; requisition is shared
     }
 
-    fn allocate_x(&mut self) {
+    fn allocate_x(&self) {
         // Nothing to do; no children
     }
 
-    fn update_y_req(&mut self) {
+    fn update_y_req(&self) {
         // Nothing to do; requisition is shared
     }
 
-    fn allocate_y(&mut self) {
+    fn allocate_y(&self) {
         // Nothing to do; no children
     }
 }
