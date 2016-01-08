@@ -69,18 +69,17 @@ impl TElement for ColumnElement {
     }
 
     fn allocate_x(&self) {
+        let mm = self.m.borrow();
+        let x_allocs;
         {
-            let mm = self.m.borrow();
-            let x_allocs = {
-                let child_reqs: Vec<Ref<ElementReq>> = mm.children.iter().map(|c| c.element_req()).collect();
-                let child_x_reqs: Vec<&LReq> = child_reqs.iter().map(|c| &c.x_req).collect();
+            let child_reqs: Vec<Ref<ElementReq>> = mm.children.iter().map(|c| c.element_req()).collect();
+            let child_x_reqs: Vec<&LReq> = child_reqs.iter().map(|c| &c.x_req).collect();
 
-                vertical_layout::alloc_x(&mm.req.x_req,
-                        &mm.alloc.x_alloc.without_position(), &child_x_reqs)
-            };
-            for c in mm.children.iter().zip(x_allocs.iter()) {
-                c.0.element_update_x_alloc(c.1);
-            }
+            x_allocs = vertical_layout::alloc_x(&mm.req.x_req,
+                    &mm.alloc.x_alloc.without_position(), &child_x_reqs);
+        }
+        for c in mm.children.iter().zip(x_allocs.iter()) {
+            c.0.element_update_x_alloc(c.1);
         }
         self.allocate_children_x();
     }
@@ -97,19 +96,17 @@ impl TElement for ColumnElement {
     }
 
     fn allocate_y(&self) {
+        let mm = self.m.borrow();
+        let y_allocs;
         {
-            let mm = self.m.borrow();
-            let y_allocs = {
-                let child_reqs: Vec<Ref<ElementReq>> = mm.children.iter().map(|c| c.element_req()).collect();
-                let child_y_reqs: Vec<&LReq> = child_reqs.iter().map(|c| &c.y_req).collect();
+            let child_reqs: Vec<Ref<ElementReq>> = mm.children.iter().map(|c| c.element_req()).collect();
+            let child_y_reqs: Vec<&LReq> = child_reqs.iter().map(|c| &c.y_req).collect();
 
-                vertical_layout::alloc_y(&mm.req.y_req,
-                                                        &mm.alloc.y_alloc.without_position(),
-                                                        &child_y_reqs, mm.y_spacing, None)
-            };
-            for c in mm.children.iter().zip(y_allocs.iter()) {
-                c.0.element_update_y_alloc(c.1);
-            }
+            y_allocs = vertical_layout::alloc_y(&mm.req.y_req,
+                    &mm.alloc.y_alloc.without_position(), &child_y_reqs, mm.y_spacing, None);
+        }
+        for c in mm.children.iter().zip(y_allocs.iter()) {
+            c.0.element_update_y_alloc(c.1);
         }
         self.allocate_children_y();
     }
