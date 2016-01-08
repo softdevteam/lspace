@@ -10,7 +10,20 @@ use geom::bbox2::BBox2;
 use elements::element_layout::{ElementReq, ElementAlloc};
 
 
-pub type ElementRef = Rc<TElement>;
+#[derive(Clone)]
+pub struct ElementRef {
+    elem: Rc<TElement>
+}
+
+impl ElementRef {
+    pub fn new<T: TElement + 'static>(x: T) -> ElementRef {
+        return ElementRef{elem: Rc::new(x)};
+    }
+
+    pub fn get(&self) -> &TElement {
+        return &(*self.elem);
+    }
+}
 
 
 pub trait TElement {

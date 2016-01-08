@@ -12,7 +12,8 @@ pub trait TContainerElement : TElement {
     fn children(&self) -> Ref<Vec<ElementRef>>;
 
     fn draw_children(&self, cairo_ctx: &Context, visible_region: &BBox2) {
-        for child in self.children().iter() {
+        for child_ref in self.children().iter() {
+            let child = child_ref.get();
             let a = child.element_alloc();
             let child_bbox = BBox2::from_allocs(&a.x_alloc, &a.y_alloc);
             if child_bbox.intersects(visible_region) {
@@ -30,25 +31,25 @@ pub trait TContainerElement : TElement {
 
     fn update_children_x_req(&self) {
         for child in self.children().iter() {
-            child.update_x_req();
+            child.get().update_x_req();
         }
     }
 
     fn update_children_y_req(&self) {
         for child in self.children().iter() {
-            child.update_y_req();
+            child.get().update_y_req();
         }
     }
 
     fn allocate_children_x(&self) {
         for child in self.children().iter() {
-            child.allocate_x();
+            child.get().allocate_x();
         }
     }
 
     fn allocate_children_y(&self) {
         for child in self.children().iter() {
-            child.allocate_y();
+            child.get().allocate_y();
         }
     }
 }
