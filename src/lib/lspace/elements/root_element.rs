@@ -43,8 +43,7 @@ impl RootElement {
         // computed; since the immutable borrow is only required during the computation, surely
         // it could expire before the assignment starts, but alas, we have to do the following in
         // order to hand-hold rust to make sure things go in and out of scope at the right time...
-
-        let x_alloc = {LAlloc::new_from_req_in_avail_size(&self.m.borrow().req.x_req, 0.0, width)};
+        let x_alloc = LAlloc::new_from_req_in_avail_size(&self.m.borrow().req.x_req, 0.0, width);
         self.m.borrow_mut().alloc.x_alloc = x_alloc;
 
         self.allocate_x();

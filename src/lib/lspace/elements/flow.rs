@@ -72,19 +72,19 @@ impl TElement for FlowElement {
     }
 
     fn allocate_x(&self) {
+        let mm = self.m.borrow();
+        let allocs_and_lines;
         {
-            let mm = self.m.borrow();
-            let allocs_and_lines = {
-                let child_reqs: Vec<Ref<ElementReq>> = mm.children.iter().map(|c| c.element_req()).collect();
-                let child_x_reqs: Vec<&LReq> = child_reqs.iter().map(|c| &c.x_req).collect();
+            let child_reqs: Vec<Ref<ElementReq>> = mm.children.iter().map(|c| c.element_req()).collect();
+            let child_x_reqs: Vec<&LReq> = child_reqs.iter().map(|c| &c.x_req).collect();
 
-                flow_layout::alloc_x(&mm.req.x_req, &mm.alloc.x_alloc.without_position(),
-                                         &child_x_reqs, mm.x_spacing, mm.indentation)
-            };
-            (*self.m_lines.borrow_mut()).clone_from(&allocs_and_lines.1);
-            for c in mm.children.iter().zip(allocs_and_lines.0.iter()) {
-                c.0.element_update_x_alloc(c.1);
-            }
+            allocs_and_lines = flow_layout::alloc_x(&mm.req.x_req,
+                    &mm.alloc.x_alloc.without_position(), &child_x_reqs, mm.x_spacing,
+                    mm.indentation);
+        }
+        (*self.m_lines.borrow_mut()).clone_from(&allocs_and_lines.1);
+        for c in mm.children.iter().zip(allocs_and_lines.0.iter()) {
+            c.0.element_update_x_alloc(c.1);
         }
         self.allocate_children_x();
     }
@@ -103,21 +103,20 @@ impl TElement for FlowElement {
     }
 
     fn allocate_y(&self) {
+        let mm = self.m.borrow();
+        let y_allocs;
         {
-            let mm = self.m.borrow();
-            let y_allocs = {
-                let child_reqs: Vec<Ref<ElementReq>> = mm.children.iter().map(|c| c.element_req()).collect();
-                let child_y_reqs: Vec<&LReq> = child_reqs.iter().map(|c| &c.y_req).collect();
+            let child_reqs: Vec<Ref<ElementReq>> = mm.children.iter().map(|c| c.element_req()).collect();
+            let child_y_reqs: Vec<&LReq> = child_reqs.iter().map(|c| &c.y_req).collect();
 
-                let mut b_lines = self.m_lines.borrow_mut();
-                let mut lines: &mut Vec<flow_layout::FlowLine> = &mut (*b_lines);
-                flow_layout::alloc_y(&mm.req.y_req,
-                        &mm.alloc.y_alloc.without_position(),
-                        &child_y_reqs, mm.y_spacing, lines)
-            };
-            for c in mm.children.iter().zip(y_allocs.iter()) {
-                c.0.element_update_y_alloc(c.1);
-            }
+            let mut b_lines = self.m_lines.borrow_mut();
+            let mut lines: &mut Vec<flow_layout::FlowLine> = &mut (*b_lines);
+            y_allocs = flow_layout::alloc_y(&mm.req.y_req,
+                    &mm.alloc.y_alloc.without_position(),
+                    &child_y_reqs, mm.y_spacing, lines);
+        }
+        for c in mm.children.iter().zip(y_allocs.iter()) {
+            c.0.element_update_y_alloc(c.1);
         }
         self.allocate_children_y();
     }
