@@ -30,7 +30,7 @@ use geom::vector2::Vector2;
 use geom::point2::Point2;
 use geom::bbox2::BBox2;
 use elements::element_ctx::ElementContext;
-use elements::element::{TElement};
+use elements::element::{TElement, ElementRef};
 use elements::root_element::RootElement;
 use pres::pres::{Pres, PresBuildCtx};
 use pres::primitive::root_containing;
@@ -44,7 +44,7 @@ struct LSpaceAreaState {
 
     content: Pres,
 
-    elem: Option<RootElement>,
+    elem: Option<ElementRef>,
 
     initialised: bool,
     layout_required: bool
@@ -59,7 +59,7 @@ impl LSpaceAreaState {
             layout_required: true};
     }
 
-    fn new_document_in_root(&mut self, cairo_ctx: &Context) -> RootElement {
+    fn new_document_in_root(&mut self, cairo_ctx: &Context) -> ElementRef {
         let pres_ctx = PresBuildCtx::new(&self.elem_ctx, cairo_ctx);
         let root_elem = root_containing(&self.content, &pres_ctx);
         return root_elem;
@@ -125,8 +125,9 @@ impl LSpaceAreaState {
 
     fn layout(&mut self) {
         if self.layout_required {
-            match &mut self.elem {
-                &mut Some(ref mut e) => {
+            match &self.elem {
+                &Some(ref re) => {
+                    let e = re.as_root_element().unwrap();
                     let t1 = time::precise_time_ns();
                     let rx = e.root_requisition_x();
                     e.root_allocate_x(self.width as f64);
@@ -135,7 +136,7 @@ impl LSpaceAreaState {
                     let t2 = time::precise_time_ns();
                     println!("Layout time: {}", (t2-t1) as f64 * 1.0e-9);
                 },
-                &mut None => {}
+                &None => {}
             }
             self.layout_required = false;
         }
@@ -143,7 +144,8 @@ impl LSpaceAreaState {
 
     fn draw(&self, cairo_ctx: &Context) {
         match &self.elem {
-            &Some(ref e) => {
+            &Some(ref re) => {
+                let e = re.as_root_element().unwrap();
                 let t1 = time::precise_time_ns();
                 e.draw(cairo_ctx, &BBox2::from_lower_size(Point2::origin(),
                         Vector2::new(self.width as f64, self.height as f64)));

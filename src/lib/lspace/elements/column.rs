@@ -10,6 +10,9 @@ use geom::bbox2::BBox2;
 use elements::element_layout::{ElementReq, ElementAlloc};
 use elements::element::{TElement, ElementRef};
 use elements::container::TContainerElement;
+use elements::bin::{TBinElement};
+use elements::container_sequence::{TContainerSequenceElement};
+use elements::root_element::{TRootElement};
 
 
 struct ColumnElementMut {
@@ -25,15 +28,33 @@ pub struct ColumnElement {
 
 
 impl ColumnElement {
-    pub fn new(children: Vec<ElementRef>, y_spacing: f64) -> ColumnElement {
+    pub fn new(y_spacing: f64) -> ColumnElement {
         return ColumnElement{m: RefCell::new(ColumnElementMut{
                                 req: ElementReq::new(), alloc: ElementAlloc::new(),
-                                children: children, y_spacing: y_spacing})};
+                                children: Vec::new(), y_spacing: y_spacing})};
     }
 }
 
 
 impl TElement for ColumnElement {
+    /// Interface acquisition
+    fn as_container(&self) -> Option<&TContainerElement> {
+        return Some(self);
+    }
+
+    fn as_bin(&self) -> Option<&TBinElement> {
+        return None;
+    }
+
+    fn as_container_sequence(&self) -> Option<&TContainerSequenceElement> {
+        return Some(self);
+    }
+
+    fn as_root_element(&self) -> Option<&TRootElement> {
+        return None;
+    }
+
+
     fn element_req(&self) -> Ref<ElementReq> {
         return Ref::map(self.m.borrow(), |m| &m.req);
     }
@@ -116,5 +137,17 @@ impl TElement for ColumnElement {
 impl TContainerElement for ColumnElement {
     fn children(&self) -> Ref<Vec<ElementRef>> {
         return Ref::map(self.m.borrow(), |m| &m.children);
+    }
+}
+
+
+impl TContainerSequenceElement for ColumnElement {
+    fn get_children(&self) -> Ref<Vec<ElementRef>> {
+        return Ref::map(self.m.borrow(), |m| &m.children);
+    }
+
+    fn set_children(&self, self_ref: &ElementRef, children: &Vec<ElementRef>) {
+        let mut mm = self.m.borrow_mut();
+        mm.children.clone_from(children);
     }
 }
