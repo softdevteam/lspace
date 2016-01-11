@@ -10,6 +10,9 @@ use geom::bbox2::BBox2;
 use elements::element_layout::{ElementReq, ElementAlloc};
 use elements::element::{TElement, ElementRef};
 use elements::container::TContainerElement;
+use elements::bin::{TBinElement};
+use elements::container_sequence::{TContainerSequenceElement};
+use elements::root_element::{TRootElement};
 
 
 pub struct FlowElementMut {
@@ -28,16 +31,34 @@ pub struct FlowElement {
 }
 
 impl FlowElement {
-    pub fn new(children: Vec<ElementRef>, x_spacing: f64, y_spacing: f64,
+    pub fn new(x_spacing: f64, y_spacing: f64,
                indentation: flow_layout::FlowIndent) -> FlowElement {
         return FlowElement{m: RefCell::new(FlowElementMut{
                                 req: ElementReq::new(), alloc: ElementAlloc::new(),
-                                children: children, x_spacing: x_spacing, y_spacing: y_spacing,
+                                children: Vec::new(), x_spacing: x_spacing, y_spacing: y_spacing,
                                 indentation: indentation}), m_lines: RefCell::new(Vec::new())};
     }
 }
 
 impl TElement for FlowElement {
+    /// Interface acquisition
+    fn as_container(&self) -> Option<&TContainerElement> {
+        return Some(self);
+    }
+
+    fn as_bin(&self) -> Option<&TBinElement> {
+        return None;
+    }
+
+    fn as_container_sequence(&self) -> Option<&TContainerSequenceElement> {
+        return Some(self);
+    }
+
+    fn as_root_element(&self) -> Option<&TRootElement> {
+        return None;
+    }
+
+
     fn element_req(&self) -> Ref<ElementReq> {
         return Ref::map(self.m.borrow(), |m| &m.req);
     }
@@ -126,5 +147,17 @@ impl TElement for FlowElement {
 impl TContainerElement for FlowElement {
     fn children(&self) -> Ref<Vec<ElementRef>> {
         return Ref::map(self.m.borrow(), |m| &m.children);
+    }
+}
+
+
+impl TContainerSequenceElement for FlowElement {
+    fn get_children(&self) -> Ref<Vec<ElementRef>> {
+        return Ref::map(self.m.borrow(), |m| &m.children);
+    }
+
+    fn set_children(&self, self_ref: &ElementRef, children: &Vec<ElementRef>) {
+        let mut mm = self.m.borrow_mut();
+        mm.children.clone_from(children);
     }
 }

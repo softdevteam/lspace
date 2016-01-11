@@ -13,6 +13,10 @@ use geom::colour::{Colour, BLACK};
 use elements::element_layout::{ElementReq, ElementAlloc};
 use elements::element_ctx::{ElementContext};
 use elements::element::{TElement};
+use elements::container::{TContainerElement};
+use elements::bin::{TBinElement};
+use elements::container_sequence::{TContainerSequenceElement};
+use elements::root_element::{TRootElement};
 
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -127,6 +131,24 @@ impl TextElement {
 }
 
 impl TElement for TextElement {
+    /// Interface acquisition
+    fn as_container(&self) -> Option<&TContainerElement> {
+        return None;
+    }
+
+    fn as_bin(&self) -> Option<&TBinElement> {
+        return None
+    }
+
+    fn as_container_sequence(&self) -> Option<&TContainerSequenceElement> {
+        return None
+    }
+
+    fn as_root_element(&self) -> Option<&TRootElement> {
+        return None;
+    }
+
+
     fn element_req(&self) -> Ref<ElementReq> {
         return Ref::map(self.m.borrow(), |m| &(*m.req));
     }

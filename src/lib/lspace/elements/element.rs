@@ -8,12 +8,26 @@ use layout::lalloc::LAlloc;
 use geom::bbox2::BBox2;
 
 use elements::element_layout::{ElementReq, ElementAlloc};
+use elements::container::{TContainerElement};
+use elements::bin::{TBinElement};
+use elements::container_sequence::{TContainerSequenceElement};
+use elements::root_element::{TRootElement};
 
 
 pub type ElementRef = Rc<TElement>;
 
+pub fn elem_as_ref<T: TElement + 'static>(x: T) -> ElementRef {
+    return Rc::new(x);
+}
+
 
 pub trait TElement {
+    /// Interface acquisition
+    fn as_container(&self) -> Option<&TContainerElement>;
+    fn as_bin(&self) -> Option<&TBinElement>;
+    fn as_container_sequence(&self) -> Option<&TContainerSequenceElement>;
+    fn as_root_element(&self) -> Option<&TRootElement>;
+
     /// Acquire reference to the element layout requisition
     fn element_req(&self) -> Ref<ElementReq>;
     /// Acquire reference to the element layout allocation

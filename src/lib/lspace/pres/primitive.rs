@@ -2,8 +2,10 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 use layout::flow_layout;
-use elements::element::{TElement, ElementRef};
+use elements::element::{TElement, ElementRef, elem_as_ref};
 use elements::{text_element, column, row, flow, root_element};
+use elements::bin::{TBinElement};
+use elements::container_sequence::{TContainerSequenceElement};
 use pres::pres::{Pres, TPres, PresBuildCtx};
 
 
@@ -22,7 +24,7 @@ impl TPres for Text {
     fn build(&self, pres_ctx: &PresBuildCtx) -> ElementRef {
         let elem = text_element::TextElement::new(self.text.clone(), self.style.clone(),
                                                   pres_ctx.cairo_ctx, &pres_ctx.elem_ctx);
-        return Rc::new(elem);
+        return elem_as_ref(elem);
     }
 }
 
@@ -40,8 +42,9 @@ impl Column {
 impl TPres for Column {
     fn build(&self, pres_ctx: &PresBuildCtx) -> ElementRef {
         let child_elems = self.children.iter().map(|p| p.build(pres_ctx)).collect();
-        let elem = column::ColumnElement::new(child_elems, 0.0);
-        return Rc::new(elem);
+        let elem = elem_as_ref(column::ColumnElement::new(0.0));
+        elem.as_container_sequence().unwrap().set_children(&elem, &child_elems);
+        return elem;
     }
 }
 
@@ -59,8 +62,9 @@ impl Row {
 impl TPres for Row {
     fn build(&self, pres_ctx: &PresBuildCtx) -> ElementRef {
         let child_elems = self.children.iter().map(|p| p.build(pres_ctx)).collect();
-        let elem = row::RowElement::new(child_elems, 0.0);
-        return Rc::new(elem);
+        let elem = elem_as_ref(row::RowElement::new(0.0));
+        elem.as_container_sequence().unwrap().set_children(&elem, &child_elems);
+        return elem;
     }
 }
 
@@ -78,13 +82,16 @@ impl Flow {
 impl TPres for Flow {
     fn build(&self, pres_ctx: &PresBuildCtx) -> ElementRef {
         let child_elems = self.children.iter().map(|p| p.build(pres_ctx)).collect();
-        let elem = flow::FlowElement::new(child_elems, 0.0, 0.0, flow_layout::FlowIndent::NoIndent);
-        return Rc::new(elem);
+        let elem = elem_as_ref(flow::FlowElement::new(0.0, 0.0, flow_layout::FlowIndent::NoIndent));
+        elem.as_container_sequence().unwrap().set_children(&elem, &child_elems);
+        return elem;
     }
 }
 
 
-pub fn root_containing(p: &Pres, ctx: &PresBuildCtx) -> root_element::RootElement {
-    let e = p.build(ctx);
-    return root_element::RootElement::new(e);
+pub fn root_containing(p: &Pres, ctx: &PresBuildCtx) -> ElementRef {
+    let child = p.build(ctx);
+    let elem = elem_as_ref(root_element::RootElement::new());
+    elem.as_bin().unwrap().set_child(&elem, child);
+    return elem;
 }
