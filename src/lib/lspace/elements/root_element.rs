@@ -90,14 +90,14 @@ impl TElement for RootElement {
     fn update_x_req(&self) {
         self.update_children_x_req();
         let mut mm = self.m.borrow_mut();
-        let x_req: LReq = {mm.children[0].element_req().x_req.clone()};
+        let x_req: LReq = {mm.children[0].get().element_req().x_req.clone()};
         mm.req.x_req = x_req;
     }
 
     fn allocate_x(&self) {
         {
             let mm = self.m.borrow();
-            mm.children[0].element_update_x_alloc(&mm.alloc.x_alloc);
+            mm.children[0].get().element_update_x_alloc(&mm.alloc.x_alloc);
         }
         self.allocate_children_x();
     }
@@ -105,14 +105,14 @@ impl TElement for RootElement {
     fn update_y_req(&self) {
         self.update_children_y_req();
         let mut mm = self.m.borrow_mut();
-        let y_req: LReq = {mm.children[0].element_req().y_req.clone()};
+        let y_req: LReq = {mm.children[0].get().element_req().y_req.clone()};
         mm.req.y_req = y_req;
     }
 
     fn allocate_y(&self) {
         {
             let mm = self.m.borrow();
-            mm.children[0].element_update_y_alloc(&mm.alloc.y_alloc);
+            mm.children[0].get().element_update_y_alloc(&mm.alloc.y_alloc);
         }
         self.allocate_children_y();
     }
