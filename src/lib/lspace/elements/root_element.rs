@@ -1,6 +1,6 @@
 use cairo::Context;
 
-use std::cell::{RefCell, Ref};
+use std::cell::{RefCell, Ref, RefMut};
 
 use layout::lalloc::LAlloc;
 use layout::lreq::LReq;
@@ -58,7 +58,6 @@ impl TElement for RootElement {
         return Some(self);
     }
 
-
     /// Parent get and set methods
     fn get_parent(&self) -> Option<ElementRef> {
         return None;
@@ -68,7 +67,7 @@ impl TElement for RootElement {
         panic!("Cannot set parent of root element");
     }
 
-
+    // Layout structure acquisition
     fn element_req(&self) -> Ref<ElementReq> {
         return Ref::map(self.m.borrow(), |m| &m.req);
     }
@@ -77,63 +76,41 @@ impl TElement for RootElement {
         return Ref::map(self.m.borrow(), |m| &m.alloc);
     }
 
-    /// Update element X allocation
-    fn element_update_x_alloc(&self, x_alloc: &LAlloc) {
-        self.m.borrow_mut().alloc.x_alloc.clone_from(x_alloc);
-    }
-    /// Update element Y allocation
-    fn element_update_y_alloc(&self, y_alloc: &LAlloc) {
-        self.m.borrow_mut().alloc.y_alloc.clone_from(y_alloc);
+    fn element_alloc_mut(&self) -> RefMut<ElementAlloc> {
+        return RefMut::map(self.m.borrow_mut(), |m| &mut m.alloc);
     }
 
+    /// Update element X requisition
+    fn element_update_x_req(&self, x_req: &LReq) -> bool {
+        return self.m.borrow_mut().req.update_x_req(x_req);
+    }
 
+    /// Update element Y requisition
+    fn element_update_y_req(&self, y_req: &LReq) -> bool {
+        return self.m.borrow_mut().req.update_y_req(y_req);
+    }
+
+    // Draw
     fn draw(&self, cairo_ctx: &Context, visible_region: &BBox2) {
         self.draw_self(cairo_ctx, visible_region);
         self.draw_children(cairo_ctx, visible_region);
     }
 
-
-    fn update_x_req(&self) {
-        self.update_children_x_req();
-        let mut mm = self.m.borrow_mut();
-
-        let x_req: LReq = match mm.bin.get_child() {
-            None => LReq::new_empty(),
-            Some(ref ch) => ch.element_req().x_req.clone()
-        };
-        mm.req.x_req = x_req;
+    // Update layout
+    fn update_x_req(&self) -> bool {
+        return self.container_update_x_req();
     }
 
-    fn allocate_x(&self) {
-        {
-            let mm = self.m.borrow();
-            match mm.bin.get_child() {
-                None => {},
-                Some(ref ch) => ch.element_update_x_alloc(&mm.alloc.x_alloc)
-            };
-        }
-        self.allocate_children_x();
+    fn allocate_x(&self, x_alloc: &LAlloc) -> bool {
+        return self.container_allocate_x(x_alloc);
     }
 
-    fn update_y_req(&self) {
-        self.update_children_y_req();
-        let mut mm = self.m.borrow_mut();
-        let y_req: LReq = match mm.bin.get_child() {
-            None => LReq::new_empty(),
-            Some(ref ch) => ch.element_req().y_req.clone()
-        };
-        mm.req.y_req = y_req;
+    fn update_y_req(&self) -> bool {
+        return self.container_update_y_req();
     }
 
-    fn allocate_y(&self) {
-        {
-            let mm = self.m.borrow();
-            match mm.bin.get_child() {
-                None => {},
-                Some(ref ch) => ch.element_update_y_alloc(&mm.alloc.y_alloc)
-            };
-        }
-        self.allocate_children_y();
+    fn allocate_y(&self, y_alloc: &LAlloc) {
+        self.container_allocate_y(y_alloc);
     }
 }
 
@@ -143,6 +120,38 @@ impl TContainerElement for RootElement {
     fn children(&self) -> Ref<[ElementRef]> {
         let m = self.m.borrow();
         return Ref::map(self.m.borrow(), |m| m.bin.children());
+    }
+
+    fn compute_x_req(&self) -> LReq {
+        let mut mm = self.m.borrow_mut();
+        return match mm.bin.get_child() {
+            None => LReq::new_empty(),
+            Some(ref ch) => ch.element_req().x_req.clone()
+        };
+    }
+
+    fn compute_child_x_allocs(&self) -> Vec<LAlloc> {
+        let mm = self.m.borrow();
+        return match mm.bin.get_child() {
+            None => vec![],
+            Some(ref ch) => vec![mm.alloc.x_alloc]
+        };
+    }
+
+    fn compute_y_req(&self) -> LReq {
+        let mut mm = self.m.borrow_mut();
+        return match mm.bin.get_child() {
+            None => LReq::new_empty(),
+            Some(ref ch) => ch.element_req().y_req.clone()
+        };
+    }
+
+    fn compute_child_y_allocs(&self) -> Vec<LAlloc> {
+        let mm = self.m.borrow();
+        return match mm.bin.get_child() {
+            None => vec![],
+            Some(ref ch) => vec![mm.alloc.y_alloc]
+        };
     }
 }
 
@@ -173,9 +182,8 @@ impl TRootElement for RootElement {
         // Need to assign to local variable first, then mutate value to ensure that the dynamic
         // borrows don't overlap
         let x_alloc = LAlloc::new_from_req_in_avail_size(&self.m.borrow().req.x_req, 0.0, width);
-        self.m.borrow_mut().alloc.x_alloc = x_alloc;
 
-        self.allocate_x();
+        self.allocate_x(&x_alloc);
     }
 
     fn root_requisition_y(&self) -> f64 {
@@ -185,9 +193,8 @@ impl TRootElement for RootElement {
 
     fn root_allocate_y(&self, height: f64) {
         let y_alloc = LAlloc::new_from_req_in_avail_size(&self.m.borrow().req.y_req, 0.0, height);
-        self.m.borrow_mut().alloc.y_alloc = y_alloc;
 
-        self.allocate_y();
+        self.allocate_y(&y_alloc);
     }
 }
 
