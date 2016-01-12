@@ -8,17 +8,18 @@ use layout::flow_layout;
 use geom::bbox2::BBox2;
 
 use elements::element_layout::{ElementReq, ElementAlloc};
-use elements::element::{TElement, ElementRef};
+use elements::element::{TElement, ElementRef, ElementParentMut};
 use elements::container::TContainerElement;
 use elements::bin::{TBinElement};
-use elements::container_sequence::{TContainerSequenceElement};
+use elements::container_sequence::{TContainerSequenceElement, ContainerSequenceComponentMut};
 use elements::root_element::{TRootElement};
 
 
 pub struct FlowElementMut {
+    parent: ElementParentMut,
     req: ElementReq,
     alloc: ElementAlloc,
-    children: Vec<ElementRef>,
+    container_seq: ContainerSequenceComponentMut,
     x_spacing: f64,
     y_spacing: f64,
     indentation: flow_layout::FlowIndent,
@@ -27,16 +28,18 @@ pub struct FlowElementMut {
 
 pub struct FlowElement {
     m: RefCell<FlowElementMut>,
-    m_lines: RefCell<Vec<flow_layout::FlowLine>>
+    m_lines: RefCell<Vec<flow_layout::FlowLine>>,
 }
 
 impl FlowElement {
     pub fn new(x_spacing: f64, y_spacing: f64,
                indentation: flow_layout::FlowIndent) -> FlowElement {
         return FlowElement{m: RefCell::new(FlowElementMut{
-                                req: ElementReq::new(), alloc: ElementAlloc::new(),
-                                children: Vec::new(), x_spacing: x_spacing, y_spacing: y_spacing,
-                                indentation: indentation}), m_lines: RefCell::new(Vec::new())};
+                parent: ElementParentMut::new(),
+                req: ElementReq::new(), alloc: ElementAlloc::new(),
+                container_seq: ContainerSequenceComponentMut::new(),
+                x_spacing: x_spacing, y_spacing: y_spacing,
+                indentation: indentation}), m_lines: RefCell::new(Vec::new())};
     }
 }
 
@@ -56,6 +59,16 @@ impl TElement for FlowElement {
 
     fn as_root_element(&self) -> Option<&TRootElement> {
         return None;
+    }
+
+
+    /// Parent get and set methods
+    fn get_parent(&self) -> Option<ElementRef> {
+        return self.m.borrow().parent.get().clone();
+    }
+
+    fn set_parent(&self, p: Option<&ElementRef>) {
+        self.m.borrow_mut().parent.set(p);
     }
 
 
@@ -85,7 +98,8 @@ impl TElement for FlowElement {
         self.update_children_x_req();
         let mut mm = self.m.borrow_mut();
         let x_req = {
-            let child_reqs: Vec<Ref<ElementReq>> = mm.children.iter().map(|c| c.element_req()).collect();
+            let child_reqs: Vec<Ref<ElementReq>> = mm.container_seq.get_children().iter().map(
+                    |c| c.element_req()).collect();
             let child_x_reqs: Vec<&LReq> = child_reqs.iter().map(|c| &c.x_req).collect();
             flow_layout::requisition_x(&child_x_reqs, mm.x_spacing, mm.indentation)
         };
@@ -96,7 +110,8 @@ impl TElement for FlowElement {
         let mm = self.m.borrow();
         let allocs_and_lines;
         {
-            let child_reqs: Vec<Ref<ElementReq>> = mm.children.iter().map(|c| c.element_req()).collect();
+            let child_reqs: Vec<Ref<ElementReq>> = mm.container_seq.get_children().iter().map(
+                    |c| c.element_req()).collect();
             let child_x_reqs: Vec<&LReq> = child_reqs.iter().map(|c| &c.x_req).collect();
 
             allocs_and_lines = flow_layout::alloc_x(&mm.req.x_req,
@@ -104,7 +119,7 @@ impl TElement for FlowElement {
                     mm.indentation);
         }
         (*self.m_lines.borrow_mut()).clone_from(&allocs_and_lines.1);
-        for c in mm.children.iter().zip(allocs_and_lines.0.iter()) {
+        for c in mm.container_seq.get_children().iter().zip(allocs_and_lines.0.iter()) {
             c.0.element_update_x_alloc(c.1);
         }
         self.allocate_children_x();
@@ -116,7 +131,8 @@ impl TElement for FlowElement {
         let mut b_lines = self.m_lines.borrow_mut();
         let mut lines: &mut Vec<flow_layout::FlowLine> = &mut (*b_lines);
         let y_req = {
-            let child_reqs: Vec<Ref<ElementReq>> = mm.children.iter().map(|c| c.element_req()).collect();
+            let child_reqs: Vec<Ref<ElementReq>> = mm.container_seq.get_children().iter().map(
+                    |c| c.element_req()).collect();
             let child_y_reqs: Vec<&LReq> = child_reqs.iter().map(|c| &c.y_req).collect();
             flow_layout::requisition_y(&child_y_reqs, mm.y_spacing, lines)
         };
@@ -127,7 +143,8 @@ impl TElement for FlowElement {
         let mm = self.m.borrow();
         let y_allocs;
         {
-            let child_reqs: Vec<Ref<ElementReq>> = mm.children.iter().map(|c| c.element_req()).collect();
+            let child_reqs: Vec<Ref<ElementReq>> = mm.container_seq.get_children().iter().map(
+                    |c| c.element_req()).collect();
             let child_y_reqs: Vec<&LReq> = child_reqs.iter().map(|c| &c.y_req).collect();
 
             let mut b_lines = self.m_lines.borrow_mut();
@@ -136,7 +153,7 @@ impl TElement for FlowElement {
                     &mm.alloc.y_alloc.without_position(),
                     &child_y_reqs, mm.y_spacing, lines);
         }
-        for c in mm.children.iter().zip(y_allocs.iter()) {
+        for c in mm.container_seq.get_children().iter().zip(y_allocs.iter()) {
             c.0.element_update_y_alloc(c.1);
         }
         self.allocate_children_y();
@@ -145,19 +162,18 @@ impl TElement for FlowElement {
 
 
 impl TContainerElement for FlowElement {
-    fn children(&self) -> Ref<Vec<ElementRef>> {
-        return Ref::map(self.m.borrow(), |m| &m.children);
+    fn children(&self) -> Ref<[ElementRef]> {
+        return Ref::map(self.m.borrow(), |m| m.container_seq.children());
     }
 }
 
 
 impl TContainerSequenceElement for FlowElement {
     fn get_children(&self) -> Ref<Vec<ElementRef>> {
-        return Ref::map(self.m.borrow(), |m| &m.children);
+        return Ref::map(self.m.borrow(), |m| m.container_seq.get_children());
     }
 
     fn set_children(&self, self_ref: &ElementRef, children: &Vec<ElementRef>) {
-        let mut mm = self.m.borrow_mut();
-        mm.children.clone_from(children);
+        self.m.borrow_mut().container_seq.set_children(self_ref, children);
     }
 }
