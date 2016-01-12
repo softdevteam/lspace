@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use std::cell::{RefCell, Ref};
+use std::cell::{RefCell, Ref, RefMut};
 use std::string::String;
 use std::hash::{Hash};
 use std::mem::transmute;
@@ -7,6 +7,7 @@ use std::mem::transmute;
 use cairo::Context;
 use cairo_sys::enums::{FontSlant, FontWeight};
 
+use layout::lreq::LReq;
 use layout::lalloc::LAlloc;
 use geom::bbox2::BBox2;
 use geom::colour::{Colour, BLACK};
@@ -103,15 +104,12 @@ impl TextStyleParams {
 pub type TextReqKey = (String, TextWeight, TextSlant, i64, String);
 
 
-
-
 struct TextElementMut {
     parent: ElementParentMut,
     req: Rc<ElementReq>,
     alloc: ElementAlloc,
     text: String,
 }
-
 
 pub struct TextElement {
     style: Rc<TextStyleParams>,
@@ -149,9 +147,7 @@ impl TElement for TextElement {
     fn as_root_element(&self) -> Option<&TRootElement> {
         return None;
     }
-
-
-
+    
     /// Parent get and set methods
     fn get_parent(&self) -> Option<ElementRef> {
         return self.m.borrow().parent.get().clone();
@@ -161,7 +157,7 @@ impl TElement for TextElement {
         self.m.borrow_mut().parent.set(p);
     }
 
-
+    // Element structure acquisition
     fn element_req(&self) -> Ref<ElementReq> {
         return Ref::map(self.m.borrow(), |m| &(*m.req));
     }
@@ -170,15 +166,21 @@ impl TElement for TextElement {
         return Ref::map(self.m.borrow(), |m| &m.alloc);
     }
 
-    /// Update element X allocation
-    fn element_update_x_alloc(&self, x_alloc: &LAlloc) {
-        self.m.borrow_mut().alloc.x_alloc.clone_from(x_alloc);
-    }
-    /// Update element Y allocation
-    fn element_update_y_alloc(&self, y_alloc: &LAlloc) {
-        self.m.borrow_mut().alloc.y_alloc.clone_from(y_alloc);
+    fn element_alloc_mut(&self) -> RefMut<ElementAlloc> {
+        return RefMut::map(self.m.borrow_mut(), |m| &mut m.alloc);
     }
 
+    /// Update element X requisition
+    fn element_update_x_req(&self, x_req: &LReq) -> bool {
+        return false;
+    }
+
+    /// Update element Y requisition
+    fn element_update_y_req(&self, y_req: &LReq) -> bool {
+        return false;
+    }
+
+    // Draw
     fn draw_self(&self, cairo_ctx: &Context, visible_region: &BBox2) {
         let mm = self.m.borrow();
         let y = match mm.alloc.y_alloc.ref_point() {
@@ -194,19 +196,35 @@ impl TElement for TextElement {
         self.draw_self(cairo_ctx, visible_region);
     }
 
-    fn update_x_req(&self) {
+    // Update layout
+    fn update_x_req(&self) -> bool {
         // Nothing to do; requisition is shared
+        let mut mm = self.m.borrow_mut();
+        let updated = mm.alloc.is_x_req_update_required();
+        mm.alloc.x_req_updated();
+        return updated;
     }
 
-    fn allocate_x(&self) {
+    fn allocate_x(&self, x_alloc: &LAlloc) -> bool {
         // Nothing to do; no children
+        let mut mm = self.m.borrow_mut();
+        mm.alloc.update_x_alloc(x_alloc);
+        mm.alloc.x_alloc_updated();
+        return false;
     }
 
-    fn update_y_req(&self) {
+    fn update_y_req(&self) -> bool {
         // Nothing to do; requisition is shared
+        let mut mm = self.m.borrow_mut();
+        let updated = mm.alloc.is_y_req_update_required();
+        mm.alloc.y_req_updated();
+        return updated;
     }
 
-    fn allocate_y(&self) {
+    fn allocate_y(&self, y_alloc: &LAlloc) {
         // Nothing to do; no children
+        let mut mm = self.m.borrow_mut();
+        mm.alloc.update_y_alloc(y_alloc);
+        mm.alloc.y_alloc_updated();
     }
 }

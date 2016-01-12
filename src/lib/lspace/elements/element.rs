@@ -1,7 +1,7 @@
 use cairo::Context;
 
 use std::rc::Rc;
-use std::cell::{RefCell, Ref};
+use std::cell::{RefCell, Ref, RefMut};
 
 use layout::lreq::LReq;
 use layout::lalloc::LAlloc;
@@ -32,16 +32,15 @@ pub trait TElement {
     fn get_parent(&self) -> Option<ElementRef>;
     fn set_parent(&self, p: Option<&ElementRef>);
 
-
     /// Acquire reference to the element layout requisition
     fn element_req(&self) -> Ref<ElementReq>;
     /// Acquire reference to the element layout allocation
     fn element_alloc(&self) -> Ref<ElementAlloc>;
-    /// Update element X allocation
-    fn element_update_x_alloc(&self, x_alloc: &LAlloc);
-    /// Update element Y allocation
-    fn element_update_y_alloc(&self, y_alloc: &LAlloc);
-
+    fn element_alloc_mut(&self) -> RefMut<ElementAlloc>;
+    /// Update element X requisition
+    fn element_update_x_req(&self, x_req: &LReq) -> bool;
+    /// Update element Y requisition
+    fn element_update_y_req(&self, y_req: &LReq) -> bool;
 
     /// Paint the element content that is contributed by the element itself, as opposed to child
     /// elements.
@@ -52,16 +51,16 @@ pub trait TElement {
     fn draw(&self, cairo_ctx: &Context, visible_region: &BBox2);
 
     /// Update layout: X requisition
-    fn update_x_req(&self);
+    fn update_x_req(&self) -> bool;
 
     /// Update layout: X allocation
-    fn allocate_x(&self);
+    fn allocate_x(&self, x_alloc: &LAlloc) -> bool;
 
     /// Update layout: Y requisition
-    fn update_y_req(&self);
+    fn update_y_req(&self) -> bool;
 
     /// Update layout: Y allocation
-    fn allocate_y(&self);
+    fn allocate_y(&self, y_alloc: &LAlloc);
 }
 
 
