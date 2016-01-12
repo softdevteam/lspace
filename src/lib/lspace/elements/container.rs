@@ -9,7 +9,7 @@ use elements::element::{TElement, ElementRef};
 
 
 pub trait TContainerElement : TElement {
-    fn children(&self) -> Ref<Vec<ElementRef>>;
+    fn children(&self) -> Ref<[ElementRef]>;
 
     fn draw_children(&self, cairo_ctx: &Context, visible_region: &BBox2) {
         for child in self.children().iter() {

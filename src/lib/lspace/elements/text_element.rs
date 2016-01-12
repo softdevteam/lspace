@@ -12,7 +12,7 @@ use geom::bbox2::BBox2;
 use geom::colour::{Colour, BLACK};
 use elements::element_layout::{ElementReq, ElementAlloc};
 use elements::element_ctx::{ElementContext};
-use elements::element::{TElement};
+use elements::element::{TElement, ElementRef, ElementParentMut};
 use elements::container::{TContainerElement};
 use elements::bin::{TBinElement};
 use elements::container_sequence::{TContainerSequenceElement};
@@ -106,6 +106,7 @@ pub type TextReqKey = (String, TextWeight, TextSlant, i64, String);
 
 
 struct TextElementMut {
+    parent: ElementParentMut,
     req: Rc<ElementReq>,
     alloc: ElementAlloc,
     text: String,
@@ -123,6 +124,7 @@ impl TextElement {
         let req = elem_ctx.borrow_mut().text_shared_req(style.clone(), text.clone(), cairo_ctx);
         return TextElement{style: style,
                            m: RefCell::new(TextElementMut{
+                                parent: ElementParentMut::new(),
                                 req: req,
                                 alloc: ElementAlloc::new(),
                                 text: text}),
@@ -146,6 +148,17 @@ impl TElement for TextElement {
 
     fn as_root_element(&self) -> Option<&TRootElement> {
         return None;
+    }
+
+
+
+    /// Parent get and set methods
+    fn get_parent(&self) -> Option<ElementRef> {
+        return self.m.borrow().parent.get().clone();
+    }
+
+    fn set_parent(&self, p: Option<&ElementRef>) {
+        self.m.borrow_mut().parent.set(p);
     }
 
 

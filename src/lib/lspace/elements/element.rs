@@ -28,6 +28,11 @@ pub trait TElement {
     fn as_container_sequence(&self) -> Option<&TContainerSequenceElement>;
     fn as_root_element(&self) -> Option<&TRootElement>;
 
+    /// Parent get and set methods
+    fn get_parent(&self) -> Option<ElementRef>;
+    fn set_parent(&self, p: Option<&ElementRef>);
+
+
     /// Acquire reference to the element layout requisition
     fn element_req(&self) -> Ref<ElementReq>;
     /// Acquire reference to the element layout allocation
@@ -36,26 +41,6 @@ pub trait TElement {
     fn element_update_x_alloc(&self, x_alloc: &LAlloc);
     /// Update element Y allocation
     fn element_update_y_alloc(&self, y_alloc: &LAlloc);
-
-    /// Acquire reference to element layout X requisition
-    fn x_req(&self) -> Ref<LReq> {
-        return Ref::map(self.element_req(), |r| &r.x_req);
-    }
-
-    /// Acquire reference to element layout X allocation
-    fn x_alloc(&self) -> Ref<LAlloc> {
-        return Ref::map(self.element_alloc(), |a| &a.x_alloc);
-    }
-
-    /// Acquire reference to element layout Y requisition
-    fn y_req(&self) -> Ref<LReq> {
-        return Ref::map(self.element_req(), |r| &r.y_req);
-    }
-
-    /// Acquire reference to element layout Y allocation
-    fn y_alloc(&self) -> Ref<LAlloc> {
-        return Ref::map(self.element_alloc(), |a| &a.y_alloc);
-    }
 
 
     /// Paint the element content that is contributed by the element itself, as opposed to child
@@ -77,4 +62,26 @@ pub trait TElement {
 
     /// Update layout: Y allocation
     fn allocate_y(&self);
+}
+
+
+pub struct ElementParentMut {
+    parent: Option<ElementRef>
+}
+
+impl ElementParentMut {
+    pub fn new() -> ElementParentMut {
+        return ElementParentMut{parent: None};
+    }
+
+    pub fn get(&self) -> Option<ElementRef> {
+        return self.parent.clone();
+    }
+
+    pub fn set(&mut self, p: Option<&ElementRef>) {
+        self.parent = match p {
+            None => None,
+            Some(pp) => Some(pp.clone())
+        };
+    }
 }

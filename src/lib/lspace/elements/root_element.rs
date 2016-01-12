@@ -7,9 +7,9 @@ use layout::lreq::LReq;
 use geom::bbox2::BBox2;
 
 use elements::element_layout::{ElementReq, ElementAlloc};
-use elements::element::{TElement, ElementRef};
+use elements::element::{TElement, ElementRef, ElementParentMut};
 use elements::container::TContainerElement;
-use elements::bin::TBinElement;
+use elements::bin::{TBinElement, BinComponentMut};
 use elements::container_sequence::{TContainerSequenceElement};
 
 
@@ -25,7 +25,7 @@ pub trait TRootElement : TBinElement {
 struct RootElementMut {
     req: ElementReq,
     alloc: ElementAlloc,
-    children: Vec<ElementRef>,
+    bin: BinComponentMut,
 }
 
 pub struct RootElement {
@@ -36,7 +36,7 @@ impl RootElement {
     pub fn new() -> RootElement {
         return RootElement{m: RefCell::new(RootElementMut{
             req: ElementReq::new(), alloc: ElementAlloc::new(),
-            children: Vec::new()})};
+            bin: BinComponentMut::new()})};
     }
 }
 
@@ -56,6 +56,16 @@ impl TElement for RootElement {
 
     fn as_root_element(&self) -> Option<&TRootElement> {
         return Some(self);
+    }
+
+
+    /// Parent get and set methods
+    fn get_parent(&self) -> Option<ElementRef> {
+        return None;
+    }
+
+    fn set_parent(&self, p: Option<&ElementRef>) {
+        panic!("Cannot set parent of root element");
     }
 
 
@@ -86,14 +96,21 @@ impl TElement for RootElement {
     fn update_x_req(&self) {
         self.update_children_x_req();
         let mut mm = self.m.borrow_mut();
-        let x_req: LReq = {mm.children[0].element_req().x_req.clone()};
+
+        let x_req: LReq = match mm.bin.get_child() {
+            None => LReq::new_empty(),
+            Some(ref ch) => ch.element_req().x_req.clone()
+        };
         mm.req.x_req = x_req;
     }
 
     fn allocate_x(&self) {
         {
             let mm = self.m.borrow();
-            mm.children[0].element_update_x_alloc(&mm.alloc.x_alloc);
+            match mm.bin.get_child() {
+                None => {},
+                Some(ref ch) => ch.element_update_x_alloc(&mm.alloc.x_alloc)
+            };
         }
         self.allocate_children_x();
     }
@@ -101,46 +118,48 @@ impl TElement for RootElement {
     fn update_y_req(&self) {
         self.update_children_y_req();
         let mut mm = self.m.borrow_mut();
-        let y_req: LReq = {mm.children[0].element_req().y_req.clone()};
+        let y_req: LReq = match mm.bin.get_child() {
+            None => LReq::new_empty(),
+            Some(ref ch) => ch.element_req().y_req.clone()
+        };
         mm.req.y_req = y_req;
     }
 
     fn allocate_y(&self) {
         {
             let mm = self.m.borrow();
-            mm.children[0].element_update_y_alloc(&mm.alloc.y_alloc);
+            match mm.bin.get_child() {
+                None => {},
+                Some(ref ch) => ch.element_update_y_alloc(&mm.alloc.y_alloc)
+            };
         }
         self.allocate_children_y();
     }
 }
 
+const NO_CHILDREN: [ElementRef; 0] = [];
+
 impl TContainerElement for RootElement {
-    fn children(&self) -> Ref<Vec<ElementRef>> {
-        return Ref::map(self.m.borrow(), |m| &m.children);
+    fn children(&self) -> Ref<[ElementRef]> {
+        let m = self.m.borrow();
+        return Ref::map(self.m.borrow(), |m| m.bin.children());
     }
 }
 
 impl TBinElement for RootElement {
-    fn get_child(&self) -> Option<Ref<ElementRef>> {
+    fn get_child(&self) -> Option<ElementRef> {
         let mm = self.m.borrow();
-        let n = mm.children.len();
-        assert!(n < 2);
-        return if n == 0 {None} else {Some(Ref::map(mm, |m| &m.children[0]))};
+        return mm.bin.get_child();
     }
 
     fn set_child(&self, self_ref: &ElementRef, child: ElementRef) {
         let mut mm = self.m.borrow_mut();
-        if mm.children.len() == 0 {
-            mm.children.push(child);
-        }
-        else {
-            mm.children[0] = child;
-        }
+        mm.bin.set_child(self_ref, child);
     }
 
     fn clear_child(&self) {
         let mut mm = self.m.borrow_mut();
-        mm.children.clear();
+        mm.bin.clear_child();
     }
 }
 
