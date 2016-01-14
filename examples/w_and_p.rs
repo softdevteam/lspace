@@ -6,7 +6,6 @@ extern crate time;
 extern crate gtk;
 extern crate cairo;
 extern crate lspace;
-extern crate hyper;
 
 use std::io::prelude::*;
 use std::io::{self, BufReader, BufWriter};
@@ -14,9 +13,7 @@ use std::fs::File;
 use std::path::Path;
 use std::string::String;
 use std::rc::Rc;
-
-use hyper::Client;
-use hyper::header::Connection;
+use std::process::Command;
 
 use gtk::traits::*;
 use gtk::signal::Inhibit;
@@ -37,25 +34,22 @@ fn main() {
 
     // Download War and Peace if necessary
     if !Path::new(FORMATTED_FILENAME).exists() {
-        println!("Downloading War and Peace text...");
+        println!("Using Python to download War and Peace text...");
 
-        let mut all_bytes: Vec<u8> = Vec::new();
+        let version_out = Command::new("python").args(&["--version"]).output().unwrap();
+        let output = String::from_utf8_lossy(&version_out.stderr);
 
-        {
-            let client = Client::new();
-            let mut res = client.get(DOWNLOAD_URL)
-                .header(Connection::close())
-                .send().unwrap();
+        let import_code = if output.starts_with("Python 2.") {
+            "from urllib import urlretrieve"
+        } else if output.starts_with("Python 3.") {
+            "from urllib.request import urlretrieve"
+        } else {
+            panic!();
+        };
 
-            let mut reader = BufReader::new(res);
-            reader.read_to_end(&mut all_bytes);
-        }
-
-        {
-            let mut f = File::create(FORMATTED_FILENAME).unwrap();
-            let mut writer = BufWriter::new(f);
-            writer.write_all(&all_bytes);
-        }
+        Command::new("python").args(&["-c",
+            &format!("{}; urlretrieve('{}', '{}')",
+                import_code, DOWNLOAD_URL, FORMATTED_FILENAME)]).status().unwrap();
     }
 
     println!("Loading War and Peace....");
