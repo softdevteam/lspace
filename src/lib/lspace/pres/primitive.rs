@@ -30,19 +30,24 @@ impl TPres for Text {
 
 
 pub struct Column {
-    children: Vec<Pres>
+    children: Vec<Pres>,
+    y_spacing: f64,
 }
 
 impl Column {
     pub fn new(children: Vec<Pres>) -> Pres {
-        return Box::new(Column{children: children});
+        return Box::new(Column{children: children, y_spacing: 0.0});
+    }
+
+    pub fn new_full(children: Vec<Pres>, y_spacing: f64) -> Pres {
+        return Box::new(Column{children: children, y_spacing: y_spacing});
     }
 }
 
 impl TPres for Column {
     fn build(&self, pres_ctx: &PresBuildCtx) -> ElementRef {
         let child_elems = self.children.iter().map(|p| p.build(pres_ctx)).collect();
-        let elem = elem_as_ref(column::ColumnElement::new(0.0));
+        let elem = elem_as_ref(column::ColumnElement::new(self.y_spacing));
         elem.as_container_sequence().unwrap().set_children(&elem, &child_elems);
         return elem;
     }
@@ -50,19 +55,24 @@ impl TPres for Column {
 
 
 pub struct Row {
-    children: Vec<Pres>
+    children: Vec<Pres>,
+    x_spacing: f64,
 }
 
 impl Row {
     pub fn new(children: Vec<Pres>) -> Pres {
-        return Box::new(Row{children: children});
+        return Box::new(Row{children: children, x_spacing: 0.0});
+    }
+
+    pub fn new_full(children: Vec<Pres>, x_spacing: f64) -> Pres {
+        return Box::new(Row{children: children, x_spacing: x_spacing});
     }
 }
 
 impl TPres for Row {
     fn build(&self, pres_ctx: &PresBuildCtx) -> ElementRef {
         let child_elems = self.children.iter().map(|p| p.build(pres_ctx)).collect();
-        let elem = elem_as_ref(row::RowElement::new(0.0));
+        let elem = elem_as_ref(row::RowElement::new(self.x_spacing));
         elem.as_container_sequence().unwrap().set_children(&elem, &child_elems);
         return elem;
     }
@@ -70,19 +80,30 @@ impl TPres for Row {
 
 
 pub struct Flow {
-    children: Vec<Pres>
+    children: Vec<Pres>,
+    x_spacing: f64,
+    y_spacing: f64,
+    indentation: flow_layout::FlowIndent,
 }
 
 impl Flow {
     pub fn new(children: Vec<Pres>) -> Pres {
-        return Box::new(Flow{children: children});
+        return Box::new(Flow{children: children, x_spacing: 0.0, y_spacing: 0.0,
+                             indentation: flow_layout::FlowIndent::NoIndent});
+    }
+
+    pub fn new_full(children: Vec<Pres>, x_spacing: f64, y_spacing: f64,
+                    indentation: flow_layout::FlowIndent) -> Pres {
+        return Box::new(Flow{children: children, x_spacing: x_spacing, y_spacing: y_spacing,
+                        indentation: indentation});
     }
 }
 
 impl TPres for Flow {
     fn build(&self, pres_ctx: &PresBuildCtx) -> ElementRef {
         let child_elems = self.children.iter().map(|p| p.build(pres_ctx)).collect();
-        let elem = elem_as_ref(flow::FlowElement::new(0.0, 0.0, flow_layout::FlowIndent::NoIndent));
+        let elem = elem_as_ref(flow::FlowElement::new(self.x_spacing, self.y_spacing,
+                                                      self.indentation));
         elem.as_container_sequence().unwrap().set_children(&elem, &child_elems);
         return elem;
     }
