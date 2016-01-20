@@ -1,9 +1,10 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 
+use graphics::border;
 use layout::flow_layout;
 use elements::element::{TElement, ElementRef, elem_as_ref};
-use elements::{text_element, column, row, flow, root_element};
+use elements::{text_element, column, row, flow, root_element, border_element};
 use elements::bin::{TBinElement};
 use elements::container_sequence::{TContainerSequenceElement};
 use pres::pres::{Pres, TPres, PresBuildCtx};
@@ -25,6 +26,27 @@ impl TPres for Text {
         let elem = text_element::TextElement::new(self.text.clone(), self.style.clone(),
                                                   pres_ctx.cairo_ctx, &pres_ctx.elem_ctx);
         return elem_as_ref(elem);
+    }
+}
+
+
+pub struct Border {
+    child: Pres,
+    border: Rc<border::Border>
+}
+
+impl Border {
+    pub fn new(child: Pres, border: &Rc<border::Border>) -> Pres {
+        Box::new(Border{child: child, border: border.clone()})
+    }
+}
+
+impl TPres for Border {
+    fn build(&self, pres_ctx: &PresBuildCtx) -> ElementRef {
+        let child = self.child.build(pres_ctx);
+        let elem = elem_as_ref(border_element::BorderElement::new(&self.border));
+        elem.as_bin().unwrap().set_child(&elem, child);
+        elem
     }
 }
 

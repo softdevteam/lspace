@@ -52,11 +52,11 @@ impl TextSlant {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextStyleParams {
-    font_family: String,
-    weight: TextWeight,
-    slant: TextSlant,
-    size: f64,
-    colour: Colour,
+    pub font_family: String,
+    pub weight: TextWeight,
+    pub slant: TextSlant,
+    pub size: f64,
+    pub colour: Colour,
 }
 
 impl TextStyleParams {
