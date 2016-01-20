@@ -270,6 +270,27 @@ impl LNatSize {
         }
     }
 
+    /// Add a border; add the supplied amount of space to the start and end
+    pub fn apply_border(&self, before: f64, after: f64) -> LNatSize {
+        match self {
+            &LNatSize::Empty => *self,
+            &LNatSize::Size{size} => LNatSize::Size{size: size + before + after},
+            &LNatSize::Ref{before: before_ref, after: after_ref} =>
+                LNatSize::Ref{before: before_ref + before, after: after_ref + after},
+        }
+    }
+
+    /// Remove a border; remove the supplied amount of space from the start and end
+    pub fn inv_apply_border(&self, before: f64, after: f64) -> LNatSize {
+        match self {
+            &LNatSize::Empty => *self,
+            &LNatSize::Size{size} => LNatSize::Size{size: fast_max(size - (before + after), 0.0)},
+            &LNatSize::Ref{before: before_ref, after: after_ref} =>
+                LNatSize::Ref{before: fast_max(before_ref - before, 0.0),
+                              after: fast_max(after_ref - after, 0.0)},
+        }
+    }
+
     /// Cumulatively combine the space requirements of a vector of `LNatSize` instances, along
     /// the axis described by the `LNatSize` instances.
     ///
@@ -582,7 +603,7 @@ impl LReq {
         return LReq{size: size, flex: LReq::make_flex(size, min_size, stretch)};
     }
 
-    /// Indent a box - remove the supplied amount of space from the start
+    /// Indent a box - add the supplied amount of space to the start
     pub fn indent(&self, indent: f64) -> LReq {
         return LReq{size: self.size.indent(indent), flex: self.flex};
     }
@@ -590,6 +611,16 @@ impl LReq {
     /// Dedent a box - remove the supplied amount of space from the start
     pub fn dedent(&self, dedent: f64) -> LReq {
         return LReq{size: self.size.dedent(dedent), flex: self.flex};
+    }
+
+    /// Add a border to a box - add the supplied amount of space to the start and end
+    pub fn apply_border(&self, before: f64, after: f64) -> LReq {
+        return LReq{size: self.size.apply_border(before, after), flex: self.flex};
+    }
+
+    /// Dedent a box - remove the supplied amount of space from the start
+    pub fn inv_apply_border(&self, before: f64, after: f64) -> LReq {
+        return LReq{size: self.size.inv_apply_border(before, after), flex: self.flex};
     }
 
     /// Cumulatively combine the space requirements of a vector of `LReq` instances, along
@@ -808,7 +839,27 @@ mod tests {
     fn test_lnatsize_dedent() {
         assert_eq!(LNatSize::new_empty().dedent(10.0), LNatSize::new_empty());
         assert_eq!(LNatSize::new_size(15.0).dedent(10.0), LNatSize::new_size(5.0));
+        assert_eq!(LNatSize::new_size(15.0).dedent(30.0), LNatSize::new_size(0.0));
         assert_eq!(LNatSize::new_ref(13.0, 2.0).dedent(10.0), LNatSize::new_ref(3.0, 2.0));
+        assert_eq!(LNatSize::new_ref(13.0, 2.0).dedent(30.0), LNatSize::new_ref(0.0, 2.0));
+    }
+
+    #[test]
+    fn test_lnatsize_apply_border() {
+        assert_eq!(LNatSize::new_empty().apply_border(10.0, 5.0), LNatSize::new_empty());
+        assert_eq!(LNatSize::new_size(5.0).apply_border(10.0, 5.0), LNatSize::new_size(20.0));
+        assert_eq!(LNatSize::new_ref(3.0, 2.0).apply_border(10.0, 5.0), LNatSize::new_ref(13.0, 7.0));
+    }
+
+    #[test]
+    fn test_lnatsize_inv_apply_border() {
+        assert_eq!(LNatSize::new_empty().inv_apply_border(10.0, 5.0), LNatSize::new_empty());
+        assert_eq!(LNatSize::new_size(25.0).inv_apply_border(10.0, 5.0), LNatSize::new_size(10.0));
+        assert_eq!(LNatSize::new_size(25.0).inv_apply_border(30.0, 20.0), LNatSize::new_size(0.0));
+        assert_eq!(LNatSize::new_ref(13.0, 7.0).inv_apply_border(10.0, 5.0), LNatSize::new_ref(3.0, 2.0));
+        assert_eq!(LNatSize::new_ref(13.0, 7.0).inv_apply_border(10.0, 20.0), LNatSize::new_ref(3.0, 0.0));
+        assert_eq!(LNatSize::new_ref(13.0, 7.0).inv_apply_border(30.0, 5.0), LNatSize::new_ref(0.0, 2.0));
+        assert_eq!(LNatSize::new_ref(13.0, 7.0).inv_apply_border(30.0, 20.0), LNatSize::new_ref(0.0, 0.0));
     }
 
     #[test]
@@ -1178,6 +1229,32 @@ mod tests {
         assert_eq!(LReq::new_flex_size(15.0, 2.0, 3.0).dedent(10.0), LReq::new_flex_size(5.0, 2.0, 3.0));
         assert_eq!(LReq::new_fixed_ref(13.0, 2.0).dedent(10.0), LReq::new_fixed_ref(3.0, 2.0));
         assert_eq!(LReq::new_flex_ref(13.0, 2.0, 2.0, 3.0).dedent(10.0), LReq::new_flex_ref(3.0, 2.0, 2.0, 3.0));
+    }
+
+    #[test]
+    fn test_lreq_apply_border() {
+        assert_eq!(LReq::new_empty().apply_border(10.0, 5.0), LReq::new_empty());
+        assert_eq!(LReq::new_fixed_size(5.0).apply_border(10.0, 5.0), LReq::new_fixed_size(20.0));
+        assert_eq!(LReq::new_flex_size(5.0, 2.0, 3.0).apply_border(10.0, 5.0), LReq::new_flex_size(20.0, 2.0, 3.0));
+        assert_eq!(LReq::new_fixed_ref(3.0, 2.0).apply_border(10.0, 5.0), LReq::new_fixed_ref(13.0, 7.0));
+        assert_eq!(LReq::new_flex_ref(3.0, 2.0, 2.0, 3.0).apply_border(10.0, 5.0), LReq::new_flex_ref(13.0, 7.0, 2.0, 3.0));
+    }
+
+    #[test]
+    fn test_lreq_inv_apply_border() {
+        assert_eq!(LReq::new_empty().inv_apply_border(10.0, 5.0), LReq::new_empty());
+        assert_eq!(LReq::new_fixed_size(25.0).inv_apply_border(10.0, 5.0), LReq::new_fixed_size(10.0));
+        assert_eq!(LReq::new_flex_size(25.0, 2.0, 3.0).inv_apply_border(10.0, 5.0), LReq::new_flex_size(10.0, 2.0, 3.0));
+        assert_eq!(LReq::new_fixed_size(25.0).inv_apply_border(30.0, 20.0), LReq::new_fixed_size(0.0));
+        assert_eq!(LReq::new_flex_size(25.0, 2.0, 3.0).inv_apply_border(30.0, 20.0), LReq::new_flex_size(0.0, 2.0, 3.0));
+        assert_eq!(LReq::new_fixed_ref(13.0, 7.0).inv_apply_border(10.0, 5.0), LReq::new_fixed_ref(3.0, 2.0));
+        assert_eq!(LReq::new_flex_ref(13.0, 7.0, 2.0, 3.0).inv_apply_border(10.0, 5.0), LReq::new_flex_ref(3.0, 2.0, 2.0, 3.0));
+        assert_eq!(LReq::new_fixed_ref(13.0, 7.0).inv_apply_border(10.0, 20.0), LReq::new_fixed_ref(3.0, 0.0));
+        assert_eq!(LReq::new_flex_ref(13.0, 7.0, 2.0, 3.0).inv_apply_border(10.0, 20.0), LReq::new_flex_ref(3.0, 0.0, 2.0, 3.0));
+        assert_eq!(LReq::new_fixed_ref(13.0, 7.0).inv_apply_border(30.0, 5.0), LReq::new_fixed_ref(0.0, 2.0));
+        assert_eq!(LReq::new_flex_ref(13.0, 7.0, 2.0, 3.0).inv_apply_border(30.0, 5.0), LReq::new_flex_ref(0.0, 2.0, 2.0, 3.0));
+        assert_eq!(LReq::new_fixed_ref(13.0, 7.0).inv_apply_border(30.0, 20.0), LReq::new_fixed_ref(0.0, 0.0));
+        assert_eq!(LReq::new_flex_ref(13.0, 7.0, 2.0, 3.0).inv_apply_border(30.0, 20.0), LReq::new_flex_ref(0.0, 0.0, 2.0, 3.0));
     }
 
     #[test]

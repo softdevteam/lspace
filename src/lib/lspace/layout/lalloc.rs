@@ -518,6 +518,18 @@ impl LAlloc {
                         }};
     }
 
+    /// Apply border - consume the requested amount of space from the start and end
+    /// Note that it effectively does the opposite to the `LReq` method of the same name
+    pub fn apply_border(&self, before: f64, after: f64) -> LAlloc {
+        return LAlloc{pos_in_parent: self.pos_in_parent + before,
+                      alloc_size: self.alloc_size - before - after,
+                      actual_size: self.actual_size - before - after,
+                      ref_point: match self.ref_point {
+                            Some(r) => Some(r - before),
+                            None => None
+                        }};
+    }
+
     /// Copy without position
     pub fn without_position(&self) -> LAlloc {
         return LAlloc{pos_in_parent: 0.0, alloc_size: self.alloc_size,
@@ -880,6 +892,14 @@ mod tests {
                    LAlloc::new(2.0, 6.0, 8.0));
         assert_eq!(LAlloc::new_ref(0.0, 8.0, 10.0, 4.0).indent(2.0),
                    LAlloc::new_ref(2.0, 6.0, 8.0, 2.0));
+    }
+
+    #[test]
+    fn test_lalloc_apply_border() {
+        assert_eq!(LAlloc::new(0.0, 8.0, 10.0).apply_border(2.0, 3.0),
+                   LAlloc::new(2.0, 3.0, 5.0));
+        assert_eq!(LAlloc::new_ref(0.0, 8.0, 10.0, 4.0).apply_border(2.0, 3.0),
+                   LAlloc::new_ref(2.0, 3.0, 5.0, 2.0));
     }
 
     #[test]

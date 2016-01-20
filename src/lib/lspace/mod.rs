@@ -8,6 +8,7 @@ extern crate gdk;
 extern crate gtk;
 
 pub mod geom;
+pub mod graphics;
 pub mod layout;
 pub mod elements;
 pub mod pres;
