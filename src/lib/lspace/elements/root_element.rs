@@ -7,7 +7,7 @@ use layout::lreq::LReq;
 use geom::bbox2::BBox2;
 
 use elements::element_layout::{ElementReq, ElementAlloc};
-use elements::element::{TElement, ElementRef, ElementParentMut};
+use elements::element::{TElement, ElementRef};
 use elements::container::TContainerElement;
 use elements::bin::{TBinElement, BinComponentMut};
 use elements::container_sequence::{TContainerSequenceElement};
@@ -114,16 +114,15 @@ impl TElement for RootElement {
     }
 }
 
-const NO_CHILDREN: [ElementRef; 0] = [];
+
 
 impl TContainerElement for RootElement {
     fn children(&self) -> Ref<[ElementRef]> {
-        let m = self.m.borrow();
         return Ref::map(self.m.borrow(), |m| m.bin.children());
     }
 
     fn compute_x_req(&self) -> LReq {
-        let mut mm = self.m.borrow_mut();
+        let mm = self.m.borrow();
         return match mm.bin.get_child() {
             None => LReq::new_empty(),
             Some(ref ch) => ch.element_req().x_req.clone()
@@ -134,12 +133,12 @@ impl TContainerElement for RootElement {
         let mm = self.m.borrow();
         return match mm.bin.get_child() {
             None => vec![],
-            Some(ref ch) => vec![mm.alloc.x_alloc]
+            Some(_) => vec![mm.alloc.x_alloc]
         };
     }
 
     fn compute_y_req(&self) -> LReq {
-        let mut mm = self.m.borrow_mut();
+        let mm = self.m.borrow();
         return match mm.bin.get_child() {
             None => LReq::new_empty(),
             Some(ref ch) => ch.element_req().y_req.clone()
@@ -150,7 +149,7 @@ impl TContainerElement for RootElement {
         let mm = self.m.borrow();
         return match mm.bin.get_child() {
             None => vec![],
-            Some(ref ch) => vec![mm.alloc.y_alloc]
+            Some(_) => vec![mm.alloc.y_alloc]
         };
     }
 }

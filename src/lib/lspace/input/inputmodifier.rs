@@ -1,5 +1,3 @@
-use gdk::ffi as gdk_ffi;
-
 pub const BUTTON1: u16 =    0b0000000000000001;
 pub const BUTTON2: u16 =    0b0000000000000010;
 pub const BUTTON3: u16 =    0b0000000000000100;
@@ -53,40 +51,6 @@ impl InputModifierState {
 
     pub fn test_keys(&self, mask: u8) -> bool {
         return (self.keys() & mask) != 0;
-    }
-
-
-    pub fn set_buttons(&mut self, mask: u8, value: u8) {
-        let mut buttons = self.buttons();
-        buttons = (value & mask) | (buttons & !mask);
-        self.value = (buttons as u16) | (self.value & !BUTTONS_MASK);
-    }
-
-    pub fn set_keys(&mut self, mask: u8, value: u8) {
-        let mut keys = self.keys();
-        keys = (value & mask) | (keys & !mask);
-        self.value = ((keys as u16) << 8) | (self.value & !KEYS_MASK);
-    }
-
-    pub fn set_flag(&mut self, mask: u16, value: bool) {
-        if value {
-            self.value = self.value | mask;
-        } else {
-            self.value = self.value & !mask;
-        }
-    }
-
-    pub fn update_from_gdk_mod(&mut self, gdk_state: gdk_ffi::GdkModifierType) {
-        self.set_flag(BUTTON1, gdk_state.contains(gdk_ffi::GDK_BUTTON1_MASK));
-        self.set_flag(BUTTON2, gdk_state.contains(gdk_ffi::GDK_BUTTON2_MASK));
-        self.set_flag(BUTTON3, gdk_state.contains(gdk_ffi::GDK_BUTTON3_MASK));
-        self.set_flag(BUTTON4, gdk_state.contains(gdk_ffi::GDK_BUTTON4_MASK));
-        self.set_flag(BUTTON5, gdk_state.contains(gdk_ffi::GDK_BUTTON5_MASK));
-
-        self.set_flag(KEY_CTRL, gdk_state.contains(gdk_ffi::GDK_CONTROL_MASK));
-        self.set_flag(KEY_SHIFT, gdk_state.contains(gdk_ffi::GDK_SHIFT_MASK));
-        self.set_flag(KEY_ALT, gdk_state.contains(gdk_ffi::GDK_MOD1_MASK));
-        self.set_flag(KEY_SUPER, gdk_state.contains(gdk_ffi::GDK_SUPER_MASK));
     }
 
 

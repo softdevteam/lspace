@@ -24,7 +24,7 @@ use lspace::elements::text_element::{TextStyleParams};
 use lspace::pres::pres::Pres;
 use lspace::pres::primitive::{Column, Row, Text};
 use lspace::pres::richtext::paragraph;
-use lspace::lspace_area::LSpaceArea;
+use lspace::lspace_widget::LSpaceWidget;
 
 const FILENAME: &'static str = "examples/render_rust.rs";
 
@@ -181,8 +181,8 @@ fn main() {
 
     println!("Presentation built; displaying....");
 
-    // Create the LSpace area, showing our content
-    let area = LSpaceArea::new(content);
+    // Create the LSpace widget, showing our content
+    let area = LSpaceWidget::new(content);
 
     // Create a GTK window in which to place it
     let window = gtk::Window::new(gtk::WindowType::Toplevel).unwrap();

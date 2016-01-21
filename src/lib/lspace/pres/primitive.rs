@@ -1,5 +1,4 @@
 use std::rc::Rc;
-use std::cell::RefCell;
 
 use graphics::border;
 use layout::flow_layout;

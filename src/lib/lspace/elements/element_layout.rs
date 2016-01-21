@@ -1,6 +1,5 @@
 use layout::lreq::LReq;
 use layout::lalloc::LAlloc;
-use geom::bbox2::BBox2;
 
 use elements::element::{TElement, ElementRef};
 

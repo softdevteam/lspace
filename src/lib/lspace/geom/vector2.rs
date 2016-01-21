@@ -135,7 +135,7 @@ impl <'a> Neg for &'a Vector2 {
 //
 
 mod tests {
-    use std::mem;
+
     use super::*;
 
     #[test]

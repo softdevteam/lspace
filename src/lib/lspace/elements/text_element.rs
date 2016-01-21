@@ -1,7 +1,6 @@
 use std::rc::Rc;
 use std::cell::{RefCell, Ref, RefMut};
 use std::string::String;
-use std::hash::{Hash};
 use std::mem::transmute;
 
 use cairo::Context;

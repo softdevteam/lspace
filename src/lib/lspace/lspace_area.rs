@@ -2,48 +2,27 @@
 
 extern crate time;
 
-use std::rc::Rc;
-use std::cell::RefCell;
-
-use gdk::{
-    EventAny,
-    EventButton,
-    EventConfigure,
-    EventCrossing,
-    EventExpose,
-    EventFocus,
-    EventGrabBroken,
-    EventKey,
-    EventMotion,
-    EventProperty,
-    EventProximity,
-    EventScroll,
-    EventWindowState,
-    Screen,
-};
-use gdk::ffi::GdkModifierType;
-use gtk;
-use gtk::traits::*;
-use gtk::signal::Inhibit;
 use cairo::{Context, RectangleInt};
 
 use geom::vector2::Vector2;
 use geom::point2::Point2;
 use geom::bbox2::BBox2;
-use input::input_system::InputSystem;
-use input::pointer::PointerPosition;
+use input::inputmodifier::InputModifierState;
+use input::keyboard::Keyboard;
+use input::pointer::{Pointer, PointerPosition};
 use elements::element_ctx::ElementContext;
-use elements::element::{TElement, ElementRef};
-use elements::root_element::RootElement;
+use elements::element::ElementRef;
 use pres::pres::{Pres, PresBuildCtx};
 use pres::primitive::root_containing;
 
 
-struct LSpaceAreaState {
+pub struct LSpaceArea {
     width: i32,
     height: i32,
 
-    input_system: InputSystem,
+    input_mods: InputModifierState,
+    input_keyboard: Keyboard,
+    input_pointer: Pointer,
 
     elem_ctx: ElementContext,
 
@@ -55,10 +34,12 @@ struct LSpaceAreaState {
     layout_required: bool
 }
 
-impl LSpaceAreaState {
-    fn new(content: Pres) -> LSpaceAreaState {
-        return LSpaceAreaState{width: 100, height: 100,
-            input_system: InputSystem::new(),
+impl LSpaceArea {
+    pub fn new(content: Pres) -> LSpaceArea {
+        return LSpaceArea{width: 100, height: 100,
+            input_mods: InputModifierState::new(),
+            input_keyboard: Keyboard::new(),
+            input_pointer: Pointer::new(),
             content: content,
             elem_ctx: ElementContext::new(),
             elem: None,
@@ -87,63 +68,59 @@ impl LSpaceAreaState {
         }
     }
 
-    fn on_realize(&mut self) {
+    pub fn on_realize(&mut self) {
     }
 
-    fn on_unrealize(&mut self) {
+    pub fn on_unrealize(&mut self) {
     }
 
-    fn on_size_allocate(&mut self, rect: &RectangleInt) {
+    pub fn on_size_allocate(&mut self, rect: &RectangleInt) {
         self.width = rect.width as i32;
         self.height = rect.height as i32;
 
         self.layout_required = true;
     }
 
-    fn on_button_press(&mut self, event_button: &EventButton) {
-        self.input_system.mod_state_mut().update_from_gdk_mod(event_button.state);
-        let pos = Point2::new(event_button.x, event_button.y);
-        self.input_system.mouse_mut().set_position(PointerPosition::at_position(pos));
+    pub fn on_button_press(&mut self, mod_state: InputModifierState, pos: Point2, button: u32) {
+        self.input_mods = mod_state;
+        self.input_pointer.set_position(PointerPosition::at_position(pos));
     }
 
-    fn on_button_release(&mut self, event_button: &EventButton) {
-        self.input_system.mod_state_mut().update_from_gdk_mod(event_button.state);
-        let pos = Point2::new(event_button.x, event_button.y);
-        self.input_system.mouse_mut().set_position(PointerPosition::at_position(pos));
+    pub fn on_button_release(&mut self, mod_state: InputModifierState, pos: Point2, button: u32) {
+        self.input_mods = mod_state;
+        self.input_pointer.set_position(PointerPosition::at_position(pos));
     }
 
-    fn on_enter(&mut self, event_crossing: &EventCrossing) {
-        self.input_system.mod_state_mut().update_from_gdk_mod(event_crossing.state);
-        let pos = Point2::new(event_crossing.x, event_crossing.y);
-        self.input_system.mouse_mut().set_position(PointerPosition::at_position(pos));
+    pub fn on_enter(&mut self, mod_state: InputModifierState, pos: Point2) {
+        self.input_mods = mod_state;
+        self.input_pointer.set_position(PointerPosition::at_position(pos));
     }
 
-    fn on_leave(&mut self, event_crossing: &EventCrossing) {
-        self.input_system.mod_state_mut().update_from_gdk_mod(event_crossing.state);
-        self.input_system.mouse_mut().set_position(PointerPosition::out_of_bounds());
+    pub fn on_leave(&mut self, mod_state: InputModifierState, pos: Point2) {
+        self.input_mods = mod_state;
+        self.input_pointer.set_position(PointerPosition::out_of_bounds());
     }
 
-    fn on_motion(&mut self, event_motion: &EventMotion) {
-        self.input_system.mod_state_mut().update_from_gdk_mod(event_motion.state);
-        let pos = Point2::new(event_motion.x, event_motion.y);
-        self.input_system.mouse_mut().set_position(PointerPosition::at_position(pos));
+    pub fn on_motion(&mut self, mod_state: InputModifierState, pos: Point2) {
+        self.input_mods = mod_state;
+        self.input_pointer.set_position(PointerPosition::at_position(pos));
     }
 
-    fn on_scroll(&mut self, event_scroll: &EventScroll) {
-        self.input_system.mod_state_mut().update_from_gdk_mod(event_scroll.state);
-        let pos = Point2::new(event_scroll.x, event_scroll.y);
-        self.input_system.mouse_mut().set_position(PointerPosition::at_position(pos));
+    pub fn on_scroll(&mut self, mod_state: InputModifierState, pos: Point2,
+                 scroll_x: f64, scroll_y: f64) {
+        self.input_mods = mod_state;
+        self.input_pointer.set_position(PointerPosition::at_position(pos));
     }
 
-    fn on_key_press(&mut self, event_key: &EventKey) {
-        self.input_system.mod_state_mut().update_from_gdk_mod(event_key.state);
+    pub fn on_key_press(&mut self, mod_state: InputModifierState, key_val: u32, key_string: String) {
+        self.input_mods = mod_state;
     }
 
-    fn on_key_release(&mut self, event_key: &EventKey) {
-        self.input_system.mod_state_mut().update_from_gdk_mod(event_key.state);
+    pub fn on_key_release(&mut self, mod_state: InputModifierState, key_val: u32, key_string: String) {
+        self.input_mods = mod_state;
     }
 
-    fn on_draw(&mut self, cairo_ctx: Context) {
+    pub fn on_draw(&mut self, cairo_ctx: Context) {
         self.initialise(&cairo_ctx);
         self.layout();
         self.draw(&cairo_ctx);
@@ -180,123 +157,5 @@ impl LSpaceAreaState {
             },
             &None => {}
         }
-    }
-}
-
-
-pub struct LSpaceArea {
-    drawing_area: gtk::DrawingArea,
-    state: Rc<RefCell<LSpaceAreaState>>
-}
-
-impl LSpaceArea {
-    pub fn new(content: Pres) -> Rc<RefCell<LSpaceArea>> {
-        let drawing_area = gtk::DrawingArea::new().unwrap();
-        let wrapped_state = Rc::new(RefCell::new(LSpaceAreaState::new(content)));
-
-        let instance = LSpaceArea{drawing_area: drawing_area,
-            state: wrapped_state.clone()
-        };
-        let wrapped_instance = Rc::new(RefCell::new(instance));
-
-        {
-            let state_clone = wrapped_state.clone();
-            wrapped_instance.borrow().drawing_area.connect_realize(move |widget| {
-                state_clone.borrow_mut().on_realize();
-            });
-        }
-
-        {
-            let state_clone = wrapped_state.clone();
-            wrapped_instance.borrow().drawing_area.connect_unrealize(move |widget| {
-                state_clone.borrow_mut().on_unrealize();
-            });
-        }
-
-        {
-            let state_clone = wrapped_state.clone();
-            wrapped_instance.borrow().drawing_area.connect_size_allocate(move |widget, rect| {
-                state_clone.borrow_mut().on_size_allocate(rect);
-            });
-        }
-
-        {
-            let state_clone = wrapped_state.clone();
-            wrapped_instance.borrow().drawing_area.connect_button_press_event(move |widget, event_button| {
-                state_clone.borrow_mut().on_button_press(event_button);
-                return Inhibit(true);
-            });
-        }
-
-        {
-            let state_clone = wrapped_state.clone();
-            wrapped_instance.borrow().drawing_area.connect_button_release_event(move |widget, event_button| {
-                state_clone.borrow_mut().on_button_release(event_button);
-                return Inhibit(true);
-            });
-        }
-
-        {
-            let state_clone = wrapped_state.clone();
-            wrapped_instance.borrow().drawing_area.connect_enter_notify_event(move |widget, event_crossing| {
-                state_clone.borrow_mut().on_enter(event_crossing);
-                return Inhibit(true);
-            });
-        }
-
-        {
-            let state_clone = wrapped_state.clone();
-            wrapped_instance.borrow().drawing_area.connect_leave_notify_event(move |widget, event_crossing| {
-                state_clone.borrow_mut().on_leave(event_crossing);
-                return Inhibit(true);
-            });
-        }
-
-        {
-            let state_clone = wrapped_state.clone();
-            wrapped_instance.borrow().drawing_area.connect_motion_notify_event(move |widget, event_motion| {
-                state_clone.borrow_mut().on_motion(event_motion);
-                return Inhibit(true);
-            });
-        }
-
-        {
-            let state_clone = wrapped_state.clone();
-            wrapped_instance.borrow().drawing_area.connect_scroll_event(move |widget, event_scroll| {
-                state_clone.borrow_mut().on_scroll(event_scroll);
-                return Inhibit(true);
-            });
-        }
-
-        {
-            let state_clone = wrapped_state.clone();
-            wrapped_instance.borrow().drawing_area.connect_key_press_event(move |widget, event_key| {
-                state_clone.borrow_mut().on_key_press(event_key);
-                return Inhibit(true);
-            });
-        }
-
-        {
-            let state_clone = wrapped_state.clone();
-            wrapped_instance.borrow().drawing_area.connect_key_release_event(move |widget, event_key| {
-                state_clone.borrow_mut().on_key_release(event_key);
-                return Inhibit(true);
-            });
-        }
-
-        {
-            let state_clone = wrapped_state.clone();
-            let inst_clone = wrapped_instance.clone();
-            wrapped_instance.borrow().drawing_area.connect_draw(move |widget, cairo_context| {
-                state_clone.borrow_mut().on_draw(cairo_context);
-                return Inhibit(true);
-            });
-        }
-
-        return wrapped_instance;
-    }
-
-    pub fn gtk_widget(&self) -> &gtk::DrawingArea {
-        return &self.drawing_area;
     }
 }

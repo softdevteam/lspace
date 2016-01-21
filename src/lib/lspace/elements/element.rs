@@ -1,7 +1,7 @@
 use cairo::Context;
 
 use std::rc::Rc;
-use std::cell::{RefCell, Ref, RefMut};
+use std::cell::{Ref, RefMut};
 
 use layout::lreq::LReq;
 use layout::lalloc::LAlloc;

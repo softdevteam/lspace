@@ -119,7 +119,7 @@ impl TContainerElement for RowElement {
     }
 
     fn compute_x_req(&self) -> LReq {
-        let mut mm = self.m.borrow_mut();
+        let mm = self.m.borrow();
         let child_reqs: Vec<Ref<ElementReq>> = mm.container_seq.get_children().iter().map(
             |c| c.element_req()).collect();
         let child_x_reqs: Vec<&LReq> = child_reqs.iter().map(|c| &c.x_req).collect();
@@ -127,7 +127,7 @@ impl TContainerElement for RowElement {
     }
 
     fn compute_child_x_allocs(&self) -> Vec<LAlloc> {
-        let mut mm = self.m.borrow_mut();
+        let mm = self.m.borrow();
         let child_reqs: Vec<Ref<ElementReq>> = mm.container_seq.get_children().iter().map(
             |c| c.element_req()).collect();
         let child_x_reqs: Vec<&LReq> = child_reqs.iter().map(|c| &c.x_req).collect();
@@ -139,7 +139,7 @@ impl TContainerElement for RowElement {
     }
 
     fn compute_y_req(&self) -> LReq {
-        let mut mm = self.m.borrow_mut();
+        let mm = self.m.borrow();
         let child_reqs: Vec<Ref<ElementReq>> = mm.container_seq.get_children().iter().map(
             |c| c.element_req()).collect();
         let child_y_reqs: Vec<&LReq> = child_reqs.iter().map(|c| &c.y_req).collect();
@@ -147,7 +147,7 @@ impl TContainerElement for RowElement {
     }
 
     fn compute_child_y_allocs(&self) -> Vec<LAlloc> {
-        let mut mm = self.m.borrow_mut();
+        let mm = self.m.borrow();
         let child_reqs: Vec<Ref<ElementReq>> = mm.container_seq.get_children().iter().map(
             |c| c.element_req()).collect();
         let child_y_reqs: Vec<&LReq> = child_reqs.iter().map(|c| &c.y_req).collect();

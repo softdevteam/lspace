@@ -15,3 +15,4 @@ pub mod elements;
 pub mod pres;
 
 pub mod lspace_area;
+pub mod lspace_widget;

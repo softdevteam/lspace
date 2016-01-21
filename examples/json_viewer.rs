@@ -25,7 +25,7 @@ use lspace::layout::flow_layout::FlowIndent;
 use lspace::elements::text_element::{TextStyleParams, TextWeight, TextSlant};
 use lspace::pres::pres::Pres;
 use lspace::pres::primitive;
-use lspace::lspace_area::LSpaceArea;
+use lspace::lspace_widget::LSpaceWidget;
 
 
 /// Style sheet
@@ -306,9 +306,9 @@ fn main() {
     let style = StyleSheet::default();
     let content = json_to_pres(&j, &style);
 
-    // Create the LSpace area, showing our content
+    // Create the LSpace widget, showing our content
     println!("Displaying....");
-    let area = LSpaceArea::new(content);
+    let area = LSpaceWidget::new(content);
 
     // Create a GTK window in which to place it
     let window = gtk::Window::new(gtk::WindowType::Toplevel).unwrap();
