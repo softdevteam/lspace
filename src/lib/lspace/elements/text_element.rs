@@ -118,8 +118,8 @@ pub struct TextElement {
 
 impl TextElement {
     pub fn new(text: String, style: Rc<TextStyleParams>, cairo_ctx: &Context,
-               elem_ctx: &RefCell<ElementContext>) -> TextElement {
-        let req = elem_ctx.borrow_mut().text_shared_req(style.clone(), text.clone(), cairo_ctx);
+               elem_ctx: &ElementContext) -> TextElement {
+        let req = elem_ctx.text_shared_req(style.clone(), text.clone(), cairo_ctx);
         return TextElement{style: style,
                            m: RefCell::new(TextElementMut{
                                 parent: ElementParentMut::new(),

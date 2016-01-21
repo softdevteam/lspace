@@ -45,7 +45,7 @@ struct LSpaceAreaState {
 
     input_system: InputSystem,
 
-    elem_ctx: RefCell<ElementContext>,
+    elem_ctx: ElementContext,
 
     content: Pres,
 
@@ -60,7 +60,7 @@ impl LSpaceAreaState {
         return LSpaceAreaState{width: 100, height: 100,
             input_system: InputSystem::new(),
             content: content,
-            elem_ctx: RefCell::new(ElementContext::new()),
+            elem_ctx: ElementContext::new(),
             elem: None,
             initialised: false,
             layout_required: true};

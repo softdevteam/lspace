@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::rc::Rc;
+use std::cell::RefCell;
 
 use cairo::Context;
 
@@ -11,17 +12,13 @@ use elements::text_element::{TextReqKey, TextStyleParams};
 
 
 
-pub struct ElementContext {
+struct ElementContextMut {
     req_table: HashMap<TextReqKey, Rc<ElementReq>>,
 }
 
-impl ElementContext {
-    pub fn new() -> ElementContext {
-        return ElementContext{req_table: HashMap::new()};
-    }
-
-    pub fn text_shared_req(&mut self, style: Rc<TextStyleParams>, text: String,
-                           cairo_ctx: &Context) -> Rc<ElementReq> {
+impl ElementContextMut {
+    fn text_shared_req(&mut self, style: Rc<TextStyleParams>, text: String,
+                       cairo_ctx: &Context) -> Rc<ElementReq> {
         let key = style.text_req_key(text.clone());
         let req_entry = self.req_table.entry(key);
         return match req_entry {
@@ -40,3 +37,20 @@ impl ElementContext {
         };
     }
 }
+
+
+pub struct ElementContext {
+    m: RefCell<ElementContextMut>
+}
+
+impl ElementContext {
+    pub fn new() -> ElementContext {
+        ElementContext{m: RefCell::new(ElementContextMut{req_table: HashMap::new()})}
+    }
+
+    pub fn text_shared_req(&self, style: Rc<TextStyleParams>, text: String,
+                           cairo_ctx: &Context) -> Rc<ElementReq> {
+        self.m.borrow_mut().text_shared_req(style, text, cairo_ctx)
+    }
+}
+
