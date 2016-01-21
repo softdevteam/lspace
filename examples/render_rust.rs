@@ -182,12 +182,13 @@ fn main() {
     println!("Presentation built; displaying....");
 
     // Create the LSpace widget, showing our content
-    let area = LSpaceWidget::new(content);
+    let lspace = LSpaceWidget::new(content);
+    let widget = lspace.borrow().gtk_widget();
 
     // Create a GTK window in which to place it
     let window = gtk::Window::new(gtk::WindowType::Toplevel).unwrap();
     window.set_title("Render Rust code");
-    window.add(area.borrow().gtk_widget());
+    window.add(&*widget);
     window.set_default_size(800, 500);
 
     // Quit the GTK main loop when the window is closed
