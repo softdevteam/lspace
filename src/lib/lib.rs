@@ -3,3 +3,7 @@ pub mod lspace {
     mod layout {};
     mod pres {};
 };
+
+pub mod lspacegtk {
+
+};

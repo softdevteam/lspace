@@ -46,13 +46,14 @@ fn gdk_modifier_to_input_mod_state(gdk_state: gdk_ffi::GdkModifierType) -> Input
 
 pub struct LSpaceWidget {
     drawing_area: Rc<gtk::DrawingArea>,
-    state: Rc<RefCell<LSpaceArea>>
+    state: Rc<LSpaceArea>
+
 }
 
 impl LSpaceWidget {
     pub fn new(content: Pres) -> Rc<RefCell<LSpaceWidget>> {
         let drawing_area = Rc::new(gtk::DrawingArea::new().unwrap());
-        let wrapped_state = Rc::new(RefCell::new(LSpaceArea::new(content)));
+        let wrapped_state = Rc::new(LSpaceArea::new(content));
 
         let instance = LSpaceWidget{drawing_area: drawing_area.clone(),
             state: wrapped_state.clone()
@@ -62,21 +63,21 @@ impl LSpaceWidget {
         {
             let state_clone = wrapped_state.clone();
             drawing_area.connect_realize(move |widget| {
-                state_clone.borrow_mut().on_realize();
+                state_clone.on_realize();
             });
         }
 
         {
             let state_clone = wrapped_state.clone();
             drawing_area.connect_unrealize(move |widget| {
-                state_clone.borrow_mut().on_unrealize();
+                state_clone.on_unrealize();
             });
         }
 
         {
             let state_clone = wrapped_state.clone();
             drawing_area.connect_size_allocate(move |widget, rect| {
-                state_clone.borrow_mut().on_size_allocate(rect);
+                state_clone.on_size_allocate(rect.width as i32, rect.height as i32);
             });
         }
 
@@ -85,7 +86,7 @@ impl LSpaceWidget {
             drawing_area.connect_button_press_event(move |widget, event_button| {
                 let mod_state = gdk_modifier_to_input_mod_state(event_button.state);
                 let pos = Point2::new(event_button.x, event_button.y);
-                state_clone.borrow_mut().on_button_press(mod_state, pos, event_button.button);
+                state_clone.on_button_press(mod_state, pos, event_button.button);
                 return Inhibit(true);
             });
         }
@@ -95,7 +96,7 @@ impl LSpaceWidget {
             drawing_area.connect_button_release_event(move |widget, event_button| {
                 let mod_state = gdk_modifier_to_input_mod_state(event_button.state);
                 let pos = Point2::new(event_button.x, event_button.y);
-                state_clone.borrow_mut().on_button_release(mod_state, pos, event_button.button);
+                state_clone.on_button_release(mod_state, pos, event_button.button);
                 return Inhibit(true);
             });
         }
@@ -105,7 +106,7 @@ impl LSpaceWidget {
             drawing_area.connect_enter_notify_event(move |widget, event_crossing| {
                 let mod_state = gdk_modifier_to_input_mod_state(event_crossing.state);
                 let pos = Point2::new(event_crossing.x, event_crossing.y);
-                state_clone.borrow_mut().on_enter(mod_state, pos);
+                state_clone.on_enter(mod_state, pos);
                 return Inhibit(true);
             });
         }
@@ -115,7 +116,7 @@ impl LSpaceWidget {
             drawing_area.connect_leave_notify_event(move |widget, event_crossing| {
                 let mod_state = gdk_modifier_to_input_mod_state(event_crossing.state);
                 let pos = Point2::new(event_crossing.x, event_crossing.y);
-                state_clone.borrow_mut().on_leave(mod_state, pos);
+                state_clone.on_leave(mod_state, pos);
                 return Inhibit(true);
             });
         }
@@ -125,7 +126,7 @@ impl LSpaceWidget {
             drawing_area.connect_motion_notify_event(move |widget, event_motion| {
                 let mod_state = gdk_modifier_to_input_mod_state(event_motion.state);
                 let pos = Point2::new(event_motion.x, event_motion.y);
-                state_clone.borrow_mut().on_motion(mod_state, pos);
+                state_clone.on_motion(mod_state, pos);
                 return Inhibit(true);
             });
         }
@@ -135,8 +136,7 @@ impl LSpaceWidget {
             drawing_area.connect_scroll_event(move |widget, event_scroll| {
                 let mod_state = gdk_modifier_to_input_mod_state(event_scroll.state);
                 let pos = Point2::new(event_scroll.x, event_scroll.y);
-                state_clone.borrow_mut().on_scroll(mod_state, pos, event_scroll.delta_x,
-                                                   event_scroll.delta_y);
+                state_clone.on_scroll(mod_state, pos, event_scroll.delta_x, event_scroll.delta_y);
                 return Inhibit(true);
             });
         }
@@ -149,7 +149,7 @@ impl LSpaceWidget {
                 unsafe {
                     key_string.push(ptr::read(event_key.string));
                 }
-                state_clone.borrow_mut().on_key_press(mod_state, event_key.keyval, key_string);
+                state_clone.on_key_press(mod_state, event_key.keyval, key_string);
                 return Inhibit(true);
             });
         }
@@ -162,7 +162,7 @@ impl LSpaceWidget {
                 unsafe {
                     key_string.push(ptr::read(event_key.string));
                 }
-                state_clone.borrow_mut().on_key_release(mod_state, event_key.keyval, key_string);
+                state_clone.on_key_release(mod_state, event_key.keyval, key_string);
                 return Inhibit(true);
             });
         }
@@ -171,7 +171,7 @@ impl LSpaceWidget {
             let state_clone = wrapped_state.clone();
             let inst_clone = wrapped_instance.clone();
             drawing_area.connect_draw(move |widget, cairo_context| {
-                state_clone.borrow_mut().on_draw(cairo_context);
+                state_clone.on_draw(&cairo_context);
                 return Inhibit(true);
             });
         }

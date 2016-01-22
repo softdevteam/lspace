@@ -2,7 +2,10 @@
 
 extern crate time;
 
-use cairo::{Context, RectangleInt};
+use std::cell::RefCell;
+
+use cairo::{Context, RectangleInt, ffi};
+use glib::translate::*;
 
 use geom::vector2::Vector2;
 use geom::point2::Point2;
@@ -12,11 +15,12 @@ use input::keyboard::Keyboard;
 use input::pointer::{Pointer, PointerPosition};
 use elements::element_ctx::ElementContext;
 use elements::element::ElementRef;
-use pres::pres::{Pres, PresBuildCtx};
+use pres::pres::{Pres, TPres, PresBuildCtx};
 use pres::primitive::root_containing;
+use pyrs::PyWrapper;
 
 
-pub struct LSpaceArea {
+pub struct LSpaceAreaMut {
     width: i32,
     height: i32,
 
@@ -34,9 +38,9 @@ pub struct LSpaceArea {
     layout_required: bool
 }
 
-impl LSpaceArea {
-    pub fn new(content: Pres) -> LSpaceArea {
-        return LSpaceArea{width: 100, height: 100,
+impl LSpaceAreaMut {
+    pub fn new(content: Pres) -> LSpaceAreaMut {
+        return LSpaceAreaMut{width: 100, height: 100,
             input_mods: InputModifierState::new(),
             input_keyboard: Keyboard::new(),
             input_pointer: Pointer::new(),
@@ -74,9 +78,9 @@ impl LSpaceArea {
     pub fn on_unrealize(&mut self) {
     }
 
-    pub fn on_size_allocate(&mut self, rect: &RectangleInt) {
-        self.width = rect.width as i32;
-        self.height = rect.height as i32;
+    pub fn on_size_allocate(&mut self, width: i32, height: i32) {
+        self.width = width;
+        self.height = height;
 
         self.layout_required = true;
     }
@@ -120,10 +124,10 @@ impl LSpaceArea {
         self.input_mods = mod_state;
     }
 
-    pub fn on_draw(&mut self, cairo_ctx: Context) {
-        self.initialise(&cairo_ctx);
+    pub fn on_draw(&mut self, cairo_ctx: &Context) {
+        self.initialise(cairo_ctx);
         self.layout();
-        self.draw(&cairo_ctx);
+        self.draw(cairo_ctx);
     }
 
     fn layout(&mut self) {
@@ -159,3 +163,96 @@ impl LSpaceArea {
         }
     }
 }
+
+pub struct LSpaceArea {
+    m: RefCell<LSpaceAreaMut>
+}
+
+impl LSpaceArea {
+    pub fn new(content: Pres) -> LSpaceArea {
+        LSpaceArea{m: RefCell::new(LSpaceAreaMut::new(content))}
+    }
+
+    pub fn on_realize(&self) {
+        self.m.borrow_mut().on_realize();
+    }
+
+    pub fn on_unrealize(&self) {
+        self.m.borrow_mut().on_unrealize();
+    }
+
+    pub fn on_size_allocate(&self, width: i32, height: i32) {
+        self.m.borrow_mut().on_size_allocate(width, height);
+    }
+
+    pub fn on_button_press(&self, mod_state: InputModifierState, pos: Point2, button: u32) {
+        self.m.borrow_mut().on_button_press(mod_state, pos, button);
+    }
+
+    pub fn on_button_release(&self, mod_state: InputModifierState, pos: Point2, button: u32) {
+        self.m.borrow_mut().on_button_release(mod_state, pos, button);
+    }
+
+    pub fn on_enter(&self, mod_state: InputModifierState, pos: Point2) {
+        self.m.borrow_mut().on_enter(mod_state, pos);
+    }
+
+    pub fn on_leave(&self, mod_state: InputModifierState, pos: Point2) {
+        self.m.borrow_mut().on_leave(mod_state, pos);
+    }
+
+    pub fn on_motion(&self, mod_state: InputModifierState, pos: Point2) {
+        self.m.borrow_mut().on_motion(mod_state, pos);
+    }
+
+    pub fn on_scroll(&self, mod_state: InputModifierState, pos: Point2,
+                     scroll_x: f64, scroll_y: f64) {
+        self.m.borrow_mut().on_scroll(mod_state, pos, scroll_x, scroll_y);
+    }
+
+    pub fn on_key_press(&self, mod_state: InputModifierState, key_val: u32, key_string: String) {
+        self.m.borrow_mut().on_key_press(mod_state, key_val, key_string);
+    }
+
+    pub fn on_key_release(&self, mod_state: InputModifierState, key_val: u32, key_string: String) {
+        self.m.borrow_mut().on_key_release(mod_state, key_val, key_string);
+    }
+
+    pub fn on_draw(&self, cairo_ctx: &Context) {
+        self.m.borrow_mut().on_draw(cairo_ctx);
+    }
+}
+
+
+
+
+// Function exported to Python for creating a boxed `TextStyleParams`
+#[no_mangle]
+pub extern "C" fn new_lspace_area(content: Box<PyWrapper<TPres>>) -> Box<PyWrapper<LSpaceArea>> {
+    Box::new(PyWrapper::new(LSpaceArea::new(content.consume())))
+}
+
+#[no_mangle]
+pub extern "C" fn lspace_area_on_size_allocate(area: &PyWrapper<LSpaceArea>,
+                                               width: i32, height: i32) {
+    area.borrow().on_size_allocate(width, height);
+}
+
+#[no_mangle]
+pub extern "C" fn lspace_area_on_draw(area: &PyWrapper<LSpaceArea>,
+                                      ctx_raw: *mut ffi::cairo_t) {
+    let ctx = unsafe { Context::from_glib_none(ctx_raw) };
+    area.borrow().on_draw(&ctx);
+}
+
+#[no_mangle]
+pub extern "C" fn destroy_lspace_area(wrapper: Box<PyWrapper<LSpaceArea>>) {
+    wrapper.destroy();
+}
+
+
+
+
+
+// Export
+// unsafe { Context::from_glib_none($e) }

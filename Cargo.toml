@@ -6,15 +6,16 @@ authors = [ "Geoffrey French <brittix1023@gmail.com>" ]
 [dependencies]
 time = "0.1"
 rand = "0.3"
-rustc-serialize = "*"
-gdk = "*"
-gtk = "*"
-glib = "*"
 cairo-rs = "*"
 cairo-sys-rs = "*"
+libc = "*"
+glib = "*"
+gdk = "*"
+gtk = "*"
 
 [dev-dependencies]
 regex = "*"
+rustc-serialize = "*"
 
 [profile.bench]
 opt-level = 3
@@ -23,3 +24,4 @@ debug = true
 [lib]
 name = "lspace"
 path = "src/lib/lspace/mod.rs"
+crate-type = ["rlib", "dylib"]
