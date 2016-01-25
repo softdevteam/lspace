@@ -46,7 +46,7 @@ impl StyleSheet {
         StyleSheet{
             text: Rc::new(TextStyleParams::new("Sans serif".to_string(),
                 TextWeight::Normal, TextSlant::Normal, 12.0,
-                Colour{r: 0.0, g: 0.0, b: 0.0, a: 1.0})),
+                &Colour{r: 0.0, g: 0.0, b: 0.0, a: 1.0})),
 
             column_y_spacing: 0.0,
 
@@ -249,7 +249,7 @@ fn json_to_pres(j: &Json, style: &StyleSheet) -> Pres {
         "Border" => {
             let child = json_to_pres(&obj.get("child").unwrap(), &style);
             let border = Rc::new(json_to_border(j));
-            primitive::Border::new(child, &border)
+            primitive::Border::new(child, border)
         },
         "ApplyStyleSheet" => {
             json_to_pres(obj.get("child").unwrap(), &style.with_values(

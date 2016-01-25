@@ -34,6 +34,16 @@ impl <T: Clone> PyPrimWrapper<T> {
         return wrapper.val.clone();
     }
 
+    pub fn get_value_optional(wrapper_ptr: *mut PyPrimWrapper<T>) -> Option<T> {
+        if !wrapper_ptr.is_null() {
+            let wrapper: &PyPrimWrapper<T> = unsafe{&*wrapper_ptr};
+            Some(PyPrimWrapper::get_value(wrapper))
+        }
+        else {
+            None
+        }
+    }
+
     pub fn borrow<'a> (wrapper: &'a PyPrimWrapper<T>) -> &'a T {
         return &wrapper.val;
     }
@@ -41,8 +51,7 @@ impl <T: Clone> PyPrimWrapper<T> {
     pub fn borrow_optional<'a>(wrapper_ptr: *mut PyPrimWrapper<T>) -> Option<&'a T> {
         if !wrapper_ptr.is_null() {
             let wrapper: &PyPrimWrapper<T> = unsafe{&*wrapper_ptr};
-            Some(PyPrimWrapper::borrow
-                 (wrapper))
+            Some(PyPrimWrapper::borrow(wrapper))
         }
         else {
             None
