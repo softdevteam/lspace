@@ -5,9 +5,13 @@ from pylspace.lspace_area import LSpaceArea
 from pylspace import pres
 
 
-style = pres.TextStyleParams.new_default()
-text = pres.Text("Hello from LSpace", style)
-area = LSpaceArea(text)
+border = pres.GraphicsBorder.solid(1.5, 3.0, 4.0, pres.Colour(0.6, 0.6, 0.6, 1.0), None)
+base_style = pres.TextStyleParams.new_default()
+title_style = pres.TextStyleParams('Sans serif', False, False, 64.0, pres.Colour(0.0, 0.0, 0.0, 1.0))
+title = pres.Text("Hello from LSpace", title_style)
+body = pres.Text("This is a test of LSpace being called from Python", base_style)
+p = pres.Column([border.surround(title), body], 5.0)
+area = LSpaceArea(p)
 
 
 def size_allocate(wid,rect):

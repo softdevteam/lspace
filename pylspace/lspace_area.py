@@ -16,13 +16,13 @@ class LSpaceArea (RustObject):
 					      ['LSpaceArea *area', 'int w', 'int h'])
 
 	def __init__(self, content):
-		super(LSpaceArea, self).__init__(self.__new_lspace_area(content._rust_obj))
+		super(LSpaceArea, self).__init__(self.__new_lspace_area.invoke(content))
 
 	def on_size_allocate(self, width, height):
-		self.__lspace_area_on_size_allocate(self._rust_obj, width, height)
+		self.__lspace_area_on_size_allocate.invoke(self, width, height)
 
 	def on_draw(self, cairo_ctx):
-		self.__lspace_area_on_draw(self._rust_obj, pycairo_to_cairo_t_ptr(ffi, cairo_ctx))
+		self.__lspace_area_on_draw.invoke(self, pycairo_to_cairo_t_ptr(ffi, cairo_ctx))
 
 
 

@@ -1,11 +1,14 @@
 use std;
+use std::cell::Ref;
 
 use cairo::Context;
 
 use geom::fastminmax::{fast_min, fast_max};
-use geom::colour::Colour;
+use geom::colour::{Colour, PyColour};
+use pyrs::{PyWrapper, PyRcWrapper};
 
 
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Border {
     SolidBorder{
         thickness: f64,
@@ -27,17 +30,18 @@ pub enum Border {
 
 impl Border {
     pub fn new_solid(thickness: f64, inset: f64, rounding: f64,
-                     border_colour: Colour, background_colour: Option<Colour>) -> Border {
+                     border_colour: &Colour, background_colour: Option<&Colour>) -> Border {
         Border::SolidBorder{thickness: thickness, inset: inset, rounding: rounding,
-            border_colour: border_colour, background_colour: background_colour}
+            border_colour: border_colour.clone(),
+            background_colour: background_colour.map(|x| x.clone())}
     }
 
     pub fn new_filled(left_margin: f64, right_margin: f64,
                       top_margin: f64, bottom_margin: f64, rounding: f64,
-                      background_colour: Option<Colour>) -> Border {
+                      background_colour: Option<&Colour>) -> Border {
         Border::FilledBorder{left_margin: left_margin, right_margin: right_margin,
             top_margin: top_margin, bottom_margin: bottom_margin, rounding: rounding,
-            background_colour: background_colour}
+            background_colour: background_colour.map(|x| x.clone())}
     }
 
 
@@ -183,3 +187,47 @@ impl Border {
         }
     }
 }
+
+
+pub type PyBorder = PyRcWrapper<Border>;
+pub type PyBorderOwned = Box<PyBorder>;
+
+// Function exported to Python for creating a boxed `Border`, `SolidBorder` variant
+#[no_mangle]
+pub extern "C" fn new_solid_border(thickness: f64, inset: f64, rounding: f64,
+                                   border_colour: &PyColour,
+                                   background_colour_optional: *mut PyColour)
+                                        -> PyBorderOwned {
+    let border = match PyColour::borrow_optional(background_colour_optional) {
+        None =>
+            Border::new_solid(thickness, inset, rounding, &*PyColour::borrow(border_colour),
+                              None),
+        Some(ref_box_backg) =>
+            Border::new_solid(thickness, inset, rounding, &*PyColour::borrow(border_colour),
+                              Some(&ref_box_backg)),
+    };
+    Box::new(PyBorder::from_value(border))
+}
+
+// Function exported to Python for creating a boxed `Border`, `FilledBorder` variant
+#[no_mangle]
+pub extern "C" fn new_filled_border(left_margin: f64, right_margin: f64,
+                                    top_margin: f64, bottom_margin: f64, rounding: f64,
+                                    background_colour_optional: *mut PyColour)
+                                        -> PyBorderOwned {
+    let border = match PyColour::borrow_optional(background_colour_optional) {
+        None => Border::new_filled(left_margin, right_margin, top_margin, bottom_margin,
+                                   rounding, None),
+        Some(ref_box_backg) => Border::new_filled(left_margin, right_margin, top_margin,
+                                                  bottom_margin, rounding,
+                                                  Some(&ref_box_backg)),
+    };
+    Box::new(PyBorder::from_value(border))
+}
+
+#[no_mangle]
+pub extern "C" fn destroy_gfx_border(wrapper: PyBorderOwned) {
+    PyBorder::destroy(wrapper);
+}
+
+

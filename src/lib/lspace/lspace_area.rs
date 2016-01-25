@@ -229,25 +229,25 @@ impl LSpaceArea {
 // Function exported to Python for creating a boxed `TextStyleParams`
 #[no_mangle]
 pub extern "C" fn new_lspace_area(content: Box<PyWrapper<TPres>>) -> Box<PyWrapper<LSpaceArea>> {
-    Box::new(PyWrapper::new(LSpaceArea::new(content.consume())))
+    Box::new(PyWrapper::new(LSpaceArea::new(PyWrapper::consume(content))))
 }
 
 #[no_mangle]
 pub extern "C" fn lspace_area_on_size_allocate(area: &PyWrapper<LSpaceArea>,
                                                width: i32, height: i32) {
-    area.borrow().on_size_allocate(width, height);
+    PyWrapper::borrow(area).on_size_allocate(width, height);
 }
 
 #[no_mangle]
 pub extern "C" fn lspace_area_on_draw(area: &PyWrapper<LSpaceArea>,
                                       ctx_raw: *mut ffi::cairo_t) {
     let ctx = unsafe { Context::from_glib_none(ctx_raw) };
-    area.borrow().on_draw(&ctx);
+    PyWrapper::borrow(area).on_draw(&ctx);
 }
 
 #[no_mangle]
 pub extern "C" fn destroy_lspace_area(wrapper: Box<PyWrapper<LSpaceArea>>) {
-    wrapper.destroy();
+    PyWrapper::destroy(wrapper);
 }
 
 

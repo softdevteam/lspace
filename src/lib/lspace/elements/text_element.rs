@@ -60,9 +60,9 @@ pub struct TextStyleParams {
 
 impl TextStyleParams {
     pub fn new(font_family: String, weight: TextWeight, slant: TextSlant,
-               size: f64, colour: Colour) -> TextStyleParams {
+               size: f64, colour: &Colour) -> TextStyleParams {
         return TextStyleParams{font_family: font_family, weight: weight, slant: slant, size: size,
-                               colour: colour};
+                               colour: colour.clone()};
     }
 
     pub fn default() -> TextStyleParams {
@@ -77,10 +77,10 @@ impl TextStyleParams {
                                size: 14.0, colour: BLACK};
     }
 
-    pub fn with_family_and_colour(font_family: String, colour: Colour) -> TextStyleParams {
+    pub fn with_family_and_colour(font_family: String, colour: &Colour) -> TextStyleParams {
         return TextStyleParams{font_family: font_family,
                                weight: TextWeight::Normal, slant: TextSlant::Normal,
-                               size: 14.0, colour: colour};
+                               size: 14.0, colour: colour.clone()};
     }
 
     pub fn text_req_key(&self, text: String) -> TextReqKey {
