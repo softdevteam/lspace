@@ -10,9 +10,8 @@ use elements::element::{TElement, ElementRef, elem_as_ref};
 use elements::{text_element, column, row, flow, root_element, border_element};
 use elements::bin::{TBinElement};
 use elements::container_sequence::{TContainerSequenceElement};
-use geom::colour::{Colour, PyColour};
-use pres::pres::{Pres, TPres, PresBuildCtx};
-use pyrs::{PyPrimWrapper, PyWrapper, PyRcWrapper};
+use pres::pres::{Pres, TPres, PresBuildCtx, PyPres, PyPresOwned};
+use pyrs::{PyPrimWrapper, PyWrapper};
 
 
 pub struct Text {
@@ -29,7 +28,7 @@ impl Text {
 impl TPres for Text {
     fn build(&self, pres_ctx: &PresBuildCtx) -> ElementRef {
         let elem = text_element::TextElement::new(self.text.clone(), self.style.clone(),
-                                                  pres_ctx.cairo_ctx, &pres_ctx.elem_ctx);
+                                                  &pres_ctx.elem_ctx);
         return elem_as_ref(elem);
     }
 }
@@ -153,34 +152,6 @@ pub struct TextStyleRef {
 
 
 
-pub type PyTextStyleParams = PyRcWrapper<text_element::TextStyleParams>;
-pub type PyTextStyleParamsOwned = Box<PyTextStyleParams>;
-
-// Function exported to Python for creating a wrapped `TextStyleParams`
-#[no_mangle]
-pub extern "C" fn new_text_style_params(font_family: *mut c_char, bold: u16, italic: u16,
-                                        size: f64, colour: &PyColour) -> PyTextStyleParamsOwned {
-    let family = unsafe{CStr::from_ptr(font_family)};
-    Box::new(PyTextStyleParams::from_value(text_element::TextStyleParams::new(
-        family.to_str().unwrap().to_string(),
-        if bold>0 { text_element::TextWeight::Bold } else {text_element::TextWeight::Normal},
-        if italic>0 { text_element::TextSlant::Italic } else {text_element::TextSlant::Normal},
-        size,
-        &PyColour::borrow(colour))))
-}
-
-// Function exported to Python for creating a wrapped `TextStyleParams` with default settings
-#[no_mangle]
-pub extern "C" fn new_text_style_params_default() -> PyTextStyleParamsOwned {
-    Box::new(PyTextStyleParams::from_value(text_element::TextStyleParams::default()))
-}
-
-#[no_mangle]
-pub extern "C" fn destroy_text_style_params(wrapper: PyTextStyleParamsOwned) {
-    PyTextStyleParams::destroy(wrapper);
-}
-
-
 pub type PyFlowIndent = PyPrimWrapper<flow_layout::FlowIndent>;
 pub type PyFlowIntendOwned = Box<PyFlowIndent>;
 
@@ -207,22 +178,13 @@ pub extern "C" fn destroy_flow_indent(wrapper: PyFlowIntendOwned) {
 
 
 
-pub type PyPres = PyWrapper<TPres>;
-pub type PyPresOwned = Box<PyPres>;
-
-// Function to destroy types that implement `TPres`
-#[no_mangle]
-pub extern "C" fn destroy_pres(wrapper: PyPresOwned) {
-    PyWrapper::destroy(wrapper);
-}
-
-
 // Function exported to Python for creating a wrapped `Text`
 #[no_mangle]
-pub extern "C" fn new_text(text: *mut c_char, style: &PyTextStyleParams) -> PyPresOwned {
+pub extern "C" fn new_text(text: *mut c_char,
+                           style: &text_element::PyTextStyleParams) -> PyPresOwned {
     let t = unsafe{CStr::from_ptr(text)};
     Box::new(PyPres::from_boxed(Text::new(t.to_str().unwrap().to_string(),
-                                          PyTextStyleParams::get_rc(style))))
+                                          text_element::PyTextStyleParams::get_rc(style))))
 }
 
 

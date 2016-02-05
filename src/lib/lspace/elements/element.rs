@@ -8,10 +8,12 @@ use layout::lalloc::LAlloc;
 use geom::bbox2::BBox2;
 
 use elements::element_layout::{ElementReq, ElementAlloc};
+use elements::element_ctx::ElementLayoutContext;
 use elements::container::{TContainerElement};
 use elements::bin::{TBinElement};
 use elements::container_sequence::{TContainerSequenceElement};
 use elements::root_element::{TRootElement};
+use pyrs::PyRcWrapper;
 
 
 pub type ElementRef = Rc<TElement>;
@@ -51,7 +53,7 @@ pub trait TElement {
     fn draw(&self, cairo_ctx: &Context, visible_region: &BBox2);
 
     /// Update layout: X requisition
-    fn update_x_req(&self) -> bool;
+    fn update_x_req(&self, layout_ctx: &ElementLayoutContext) -> bool;
 
     /// Update layout: X allocation
     fn allocate_x(&self, x_alloc: &LAlloc) -> bool;
@@ -83,4 +85,14 @@ impl ElementParentMut {
             Some(pp) => Some(pp.clone())
         };
     }
+}
+
+
+pub type PyElement = PyRcWrapper<TElement>;
+pub type PyElementOwned = Box<PyElement>;
+
+// Function to destroy types that implement `TElement`
+#[no_mangle]
+pub extern "C" fn destroy_element(wrapper: PyElementOwned) {
+    PyElement::destroy(wrapper);
 }

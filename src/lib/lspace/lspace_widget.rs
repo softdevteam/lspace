@@ -53,7 +53,8 @@ pub struct LSpaceWidget {
 impl LSpaceWidget {
     pub fn new(content: Pres) -> Rc<RefCell<LSpaceWidget>> {
         let drawing_area = Rc::new(gtk::DrawingArea::new().unwrap());
-        let wrapped_state = Rc::new(LSpaceArea::new(content));
+        let wrapped_state = Rc::new(LSpaceArea::new());
+        wrapped_state.set_content_pres(content);
 
         let instance = LSpaceWidget{drawing_area: drawing_area.clone(),
             state: wrapped_state.clone()

@@ -2,6 +2,9 @@ use std::rc::Rc;
 use std::cell::{RefCell, Ref, RefMut};
 use std::string::String;
 use std::mem::transmute;
+use std::ffi::CStr;
+
+use libc::c_char;
 
 use cairo::Context;
 use cairo_sys::enums::{FontSlant, FontWeight};
@@ -9,14 +12,16 @@ use cairo_sys::enums::{FontSlant, FontWeight};
 use layout::lreq::LReq;
 use layout::lalloc::LAlloc;
 use geom::bbox2::BBox2;
-use geom::colour::{Colour, BLACK};
+use geom::colour::{Colour, BLACK, PyColour};
 use elements::element_layout::{ElementReq, ElementAlloc};
-use elements::element_ctx::{ElementContext};
-use elements::element::{TElement, ElementRef, ElementParentMut};
+use elements::element_ctx::{ElementContext, ElementLayoutContext};
+use elements::element::{TElement, ElementRef, ElementParentMut, PyElement, PyElementOwned};
 use elements::container::{TContainerElement};
 use elements::bin::{TBinElement};
 use elements::container_sequence::{TContainerSequenceElement};
 use elements::root_element::{TRootElement};
+use lspace_area::{LSpaceArea, PyLSpaceArea};
+use pyrs::{PyPrimWrapper, PyWrapper, PyRcWrapper};
 
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -108,6 +113,7 @@ struct TextElementMut {
     req: Rc<ElementReq>,
     alloc: ElementAlloc,
     text: String,
+    req_up_to_date: bool
 }
 
 pub struct TextElement {
@@ -116,16 +122,21 @@ pub struct TextElement {
 }
 
 impl TextElement {
-    pub fn new(text: String, style: Rc<TextStyleParams>, cairo_ctx: &Context,
+    pub fn new(text: String, style: Rc<TextStyleParams>,
                elem_ctx: &ElementContext) -> TextElement {
-        let req = elem_ctx.text_shared_req(style.clone(), text.clone(), cairo_ctx);
         return TextElement{style: style,
                            m: RefCell::new(TextElementMut{
                                 parent: ElementParentMut::new(),
-                                req: req,
+                                req: elem_ctx.empty_shared_req(),
                                 alloc: ElementAlloc::new(),
-                                text: text}),
+                                text: text,
+                                req_up_to_date: false}),
                            };
+    }
+
+    pub fn new_in_area(text: String, style: Rc<TextStyleParams>,
+                       area: &LSpaceArea) -> TextElement {
+        TextElement::new(text, style, &*area.element_context())
     }
 }
 
@@ -196,9 +207,18 @@ impl TElement for TextElement {
     }
 
     // Update layout
-    fn update_x_req(&self) -> bool {
+    fn update_x_req(&self, layout_ctx: &ElementLayoutContext) -> bool {
         // Nothing to do; requisition is shared
         let mut mm = self.m.borrow_mut();
+
+        if !mm.req_up_to_date {
+            let elem_ctx = layout_ctx.elem_ctx();
+            let req = elem_ctx.text_shared_req(self.style.clone(), mm.text.clone(),
+                                               layout_ctx.cairo_ctx());
+            mm.req = req;
+            mm.req_up_to_date = true;
+        }
+
         let updated = mm.alloc.is_x_req_update_required();
         mm.alloc.x_req_updated();
         return updated;
@@ -227,3 +247,45 @@ impl TElement for TextElement {
         mm.alloc.y_alloc_updated();
     }
 }
+
+
+pub type PyTextStyleParams = PyRcWrapper<TextStyleParams>;
+pub type PyTextStyleParamsOwned = Box<PyTextStyleParams>;
+
+// Function exported to Python for creating a wrapped `TextStyleParams`
+#[no_mangle]
+pub extern "C" fn new_text_style_params(font_family: *mut c_char, bold: u16, italic: u16,
+                                        size: f64, colour: &PyColour) -> PyTextStyleParamsOwned {
+    let family = unsafe{CStr::from_ptr(font_family)};
+    Box::new(PyTextStyleParams::from_value(TextStyleParams::new(
+        family.to_str().unwrap().to_string(),
+        if bold>0 { TextWeight::Bold } else {TextWeight::Normal},
+        if italic>0 { TextSlant::Italic } else {TextSlant::Normal},
+        size,
+        &PyColour::borrow(colour))))
+}
+
+// Function exported to Python for creating a wrapped `TextStyleParams` with default settings
+#[no_mangle]
+pub extern "C" fn new_text_style_params_default() -> PyTextStyleParamsOwned {
+    Box::new(PyTextStyleParams::from_value(TextStyleParams::default()))
+}
+
+#[no_mangle]
+pub extern "C" fn destroy_text_style_params(wrapper: PyTextStyleParamsOwned) {
+    PyTextStyleParams::destroy(wrapper);
+}
+
+
+// Function exported to Python for creating a wrapped `Text`
+#[no_mangle]
+pub extern "C" fn new_text_element(text: *mut c_char, style: &PyTextStyleParams,
+                                   area: &PyLSpaceArea) -> PyElementOwned {
+    let t = unsafe{CStr::from_ptr(text)};
+    let elem: TextElement = TextElement::new_in_area(t.to_str().unwrap().to_string(),
+                                                     PyTextStyleParams::get_rc(style),
+                                                     &**PyLSpaceArea::borrow(area));
+    Box::new(PyElement::new(Rc::new(elem)))
+}
+
+

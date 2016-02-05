@@ -2,7 +2,7 @@
 
 extern crate time;
 
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 
 use cairo::{Context, RectangleInt, ffi};
 use glib::translate::*;
@@ -13,9 +13,10 @@ use geom::bbox2::BBox2;
 use input::inputmodifier::InputModifierState;
 use input::keyboard::Keyboard;
 use input::pointer::{Pointer, PointerPosition};
-use elements::element_ctx::ElementContext;
-use elements::element::ElementRef;
-use pres::pres::{Pres, TPres, PresBuildCtx};
+use elements::element_ctx::{ElementContext, ElementLayoutContext};
+use elements::element::{ElementRef, elem_as_ref};
+use elements::{root_element};
+use pres::pres::{Pres, TPres, PresBuildCtx, PyPresOwned};
 use pres::primitive::root_containing;
 use pyrs::PyWrapper;
 
@@ -30,46 +31,34 @@ pub struct LSpaceAreaMut {
 
     elem_ctx: ElementContext,
 
-    content: Pres,
-
-    elem: Option<ElementRef>,
+    root_element: ElementRef,
 
     initialised: bool,
-    layout_required: bool
+    layout_required: bool,
 }
 
 impl LSpaceAreaMut {
-    pub fn new(content: Pres) -> LSpaceAreaMut {
+    pub fn new() -> LSpaceAreaMut {
+        let root_elem = elem_as_ref(root_element::RootElement::new());
+
         return LSpaceAreaMut{width: 100, height: 100,
             input_mods: InputModifierState::new(),
             input_keyboard: Keyboard::new(),
             input_pointer: Pointer::new(),
-            content: content,
             elem_ctx: ElementContext::new(),
-            elem: None,
+            root_element: root_elem,
             initialised: false,
             layout_required: true};
     }
 
-    fn new_document_in_root(&mut self, cairo_ctx: &Context) -> ElementRef {
-        let pres_ctx = PresBuildCtx::new(&self.elem_ctx, cairo_ctx);
-        let root_elem = root_containing(&self.content, &pres_ctx);
-        return root_elem;
+    pub fn set_content_element(&mut self, content: ElementRef) {
+        self.root_element.as_bin().unwrap().set_child(&self.root_element, content);
     }
 
-    fn initialise(&mut self, cairo_ctx: &Context) {
-        if !self.initialised {
-            cairo_ctx.save();
-            match &self.elem {
-                &None => {
-                    self.elem = Some(self.new_document_in_root(cairo_ctx));
-                },
-                &_ => {}
-            };
-            cairo_ctx.restore();
-
-            self.initialised = true;
-        }
+    pub fn set_content_pres(&mut self, p: Pres) {
+        let pres_ctx = PresBuildCtx::new(&self.elem_ctx);
+        let child = p.build(&pres_ctx);
+        self.root_element.as_bin().unwrap().set_child(&self.root_element, child);
     }
 
     pub fn on_realize(&mut self) {
@@ -125,53 +114,61 @@ impl LSpaceAreaMut {
     }
 
     pub fn on_draw(&mut self, cairo_ctx: &Context) {
-        self.initialise(cairo_ctx);
-        self.layout();
+
+        self.layout(cairo_ctx);
         self.draw(cairo_ctx);
     }
 
-    fn layout(&mut self) {
+    fn layout(&mut self, cairo_ctx: &Context) {
         if self.layout_required {
-            match &self.elem {
-                &Some(ref re) => {
-                    let e = re.as_root_element().unwrap();
-                    let t1 = time::precise_time_ns();
-                    let rx = e.root_requisition_x();
-                    e.root_allocate_x(self.width as f64);
-                    let ry = e.root_requisition_y();
-                    e.root_allocate_y(ry);
-                    let t2 = time::precise_time_ns();
-                    println!("Layout time: {}", (t2-t1) as f64 * 1.0e-9);
-                },
-                &None => {}
-            }
+            let e = self.root_element.as_root_element().unwrap();
+            let t1 = time::precise_time_ns();
+            let layout_ctx = ElementLayoutContext::new(&self.elem_ctx, cairo_ctx);
+            let rx = e.root_requisition_x(&layout_ctx);
+            e.root_allocate_x(self.width as f64);
+            let ry = e.root_requisition_y();
+            e.root_allocate_y(ry);
+            let t2 = time::precise_time_ns();
+            println!("Layout time: {}", (t2-t1) as f64 * 1.0e-9);
             self.layout_required = false;
         }
     }
 
     fn draw(&self, cairo_ctx: &Context) {
-        match &self.elem {
-            &Some(ref re) => {
-                let e = re.as_root_element().unwrap();
-                let t1 = time::precise_time_ns();
-                e.draw(cairo_ctx, &BBox2::from_lower_size(Point2::origin(),
-                        Vector2::new(self.width as f64, self.height as f64)));
-                let t2 = time::precise_time_ns();
-                println!("Render time: {}", (t2-t1) as f64 * 1.0e-9);
-            },
-            &None => {}
-        }
+        let e = self.root_element.as_root_element().unwrap();
+        let t1 = time::precise_time_ns();
+        e.draw(cairo_ctx, &BBox2::from_lower_size(Point2::origin(),
+                Vector2::new(self.width as f64, self.height as f64)));
+        let t2 = time::precise_time_ns();
+        println!("Render time: {}", (t2-t1) as f64 * 1.0e-9);
     }
 }
+
 
 pub struct LSpaceArea {
     m: RefCell<LSpaceAreaMut>
 }
 
 impl LSpaceArea {
-    pub fn new(content: Pres) -> LSpaceArea {
-        LSpaceArea{m: RefCell::new(LSpaceAreaMut::new(content))}
+    pub fn new() -> LSpaceArea {
+        LSpaceArea{m: RefCell::new(LSpaceAreaMut::new())}
     }
+
+    pub fn element_context(&self) -> Ref<ElementContext> {
+        let mm = self.m.borrow();
+        Ref::map(mm, |x| &x.elem_ctx)
+    }
+
+    pub fn set_content_element(&self, content: ElementRef) {
+        let mut mm = self.m.borrow_mut();
+        mm.set_content_element(content)
+    }
+
+    pub fn set_content_pres(&self, p: Pres) {
+        let mut mm = self.m.borrow_mut();
+        mm.set_content_pres(p)
+    }
+
 
     pub fn on_realize(&self) {
         self.m.borrow_mut().on_realize();
@@ -224,22 +221,29 @@ impl LSpaceArea {
 }
 
 
-
+pub type PyLSpaceArea = PyWrapper<LSpaceArea>;
+pub type PyLSpaceAreaOwned = Box<PyLSpaceArea>;
 
 // Function exported to Python for creating a boxed `TextStyleParams`
 #[no_mangle]
-pub extern "C" fn new_lspace_area(content: Box<PyWrapper<TPres>>) -> Box<PyWrapper<LSpaceArea>> {
-    Box::new(PyWrapper::new(LSpaceArea::new(PyWrapper::consume(content))))
+pub extern "C" fn new_lspace_area() -> Box<PyWrapper<LSpaceArea>> {
+    Box::new(PyWrapper::new(LSpaceArea::new()))
 }
 
 #[no_mangle]
-pub extern "C" fn lspace_area_on_size_allocate(area: &PyWrapper<LSpaceArea>,
+pub extern "C" fn lspace_area_set_content_pres(area: &PyLSpaceArea,
+                                               content: PyPresOwned) {
+    PyWrapper::borrow(area).set_content_pres(PyWrapper::consume(content));
+}
+
+#[no_mangle]
+pub extern "C" fn lspace_area_on_size_allocate(area: &PyLSpaceArea,
                                                width: i32, height: i32) {
     PyWrapper::borrow(area).on_size_allocate(width, height);
 }
 
 #[no_mangle]
-pub extern "C" fn lspace_area_on_draw(area: &PyWrapper<LSpaceArea>,
+pub extern "C" fn lspace_area_on_draw(area: &PyLSpaceArea,
                                       ctx_raw: *mut ffi::cairo_t) {
     let ctx = unsafe { Context::from_glib_none(ctx_raw) };
     PyWrapper::borrow(area).on_draw(&ctx);
@@ -250,9 +254,3 @@ pub extern "C" fn destroy_lspace_area(wrapper: Box<PyWrapper<LSpaceArea>>) {
     PyWrapper::destroy(wrapper);
 }
 
-
-
-
-
-// Export
-// unsafe { Context::from_glib_none($e) }

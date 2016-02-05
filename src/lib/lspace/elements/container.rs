@@ -8,6 +8,7 @@ use geom::bbox2::BBox2;
 use layout::lreq::LReq;
 use layout::lalloc::LAlloc;
 
+use elements::element_ctx::ElementLayoutContext;
 use elements::element::{TElement, ElementRef};
 
 
@@ -31,10 +32,10 @@ pub trait TContainerElement : TElement {
         }
     }
 
-    fn update_children_x_req(&self) -> bool {
+    fn update_children_x_req(&self, layout_ctx: &ElementLayoutContext) -> bool {
         let mut changed: bool = false;
         for child in self.children().iter() {
-            changed = changed | child.update_x_req();
+            changed = changed | child.update_x_req(layout_ctx);
         }
         return changed;
     }
@@ -66,11 +67,11 @@ pub trait TContainerElement : TElement {
     fn compute_y_req(&self) -> LReq;
     fn compute_child_y_allocs(&self) -> Vec<LAlloc>;
 
-    fn container_update_x_req(&self) -> bool {
+    fn container_update_x_req(&self, layout_ctx: &ElementLayoutContext) -> bool {
         if !self.element_alloc().is_x_req_update_required() {
             return false;
         }
-        let children_changed = self.update_children_x_req();
+        let children_changed = self.update_children_x_req(layout_ctx);
         let mut changed: bool = false;
         if children_changed {
             let x_req = self.compute_x_req();

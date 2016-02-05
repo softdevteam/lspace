@@ -11,7 +11,7 @@ title_style = pres.TextStyleParams('Sans serif', False, False, 64.0, pres.Colour
 title = pres.Text("Hello from LSpace", title_style)
 body = pres.Text("This is a test of LSpace being called from Python", base_style)
 p = pres.Column([border.surround(title), body], 5.0)
-area = LSpaceArea(p)
+area = LSpaceArea()
 
 
 def size_allocate(wid,rect):
@@ -42,6 +42,8 @@ if __name__ == '__main__':
 	da.connect('draw', draw)
 	frame.add(da)
 	da.queue_draw()
+
+	area.set_content_pres(p)
 
 
 	win.show_all()

@@ -40,17 +40,42 @@ impl ElementContextMut {
 
 
 pub struct ElementContext {
-    m: RefCell<ElementContextMut>
+    m: RefCell<ElementContextMut>,
+    empty_shared_req: Rc<ElementReq>
 }
 
 impl ElementContext {
     pub fn new() -> ElementContext {
-        ElementContext{m: RefCell::new(ElementContextMut{req_table: HashMap::new()})}
+        ElementContext{m: RefCell::new(ElementContextMut{req_table: HashMap::new()}),
+                       empty_shared_req: Rc::new(ElementReq::new())}
     }
 
     pub fn text_shared_req(&self, style: Rc<TextStyleParams>, text: String,
                            cairo_ctx: &Context) -> Rc<ElementReq> {
         self.m.borrow_mut().text_shared_req(style, text, cairo_ctx)
     }
+
+    pub fn empty_shared_req(&self) -> Rc<ElementReq> {
+        return self.empty_shared_req.clone();
+    }
 }
 
+
+pub struct ElementLayoutContext <'a> {
+    ctx: &'a ElementContext,
+    cairo_ctx: &'a Context
+}
+
+impl <'a> ElementLayoutContext<'a> {
+    pub fn new<'b>(ctx: &'b ElementContext, cairo_ctx: &'b Context) -> ElementLayoutContext<'b> {
+        ElementLayoutContext{ctx: ctx, cairo_ctx: cairo_ctx}
+    }
+
+    pub fn elem_ctx(&'a self) -> &'a ElementContext {
+        self.ctx
+    }
+
+    pub fn cairo_ctx(&'a self) -> &'a Context {
+        self.cairo_ctx
+    }
+}

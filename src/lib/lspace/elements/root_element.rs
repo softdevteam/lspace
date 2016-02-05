@@ -6,6 +6,7 @@ use layout::lalloc::LAlloc;
 use layout::lreq::LReq;
 use geom::bbox2::BBox2;
 
+use elements::element_ctx::ElementLayoutContext;
 use elements::element_layout::{ElementReq, ElementAlloc};
 use elements::element::{TElement, ElementRef};
 use elements::container::TContainerElement;
@@ -14,7 +15,7 @@ use elements::container_sequence::{TContainerSequenceElement};
 
 
 pub trait TRootElement : TBinElement {
-    fn root_requisition_x(&self) -> f64;
+    fn root_requisition_x(&self, layout_ctx: &ElementLayoutContext) -> f64;
     fn root_allocate_x(&self, width: f64);
     fn root_requisition_y(&self) -> f64;
 
@@ -97,8 +98,8 @@ impl TElement for RootElement {
     }
 
     // Update layout
-    fn update_x_req(&self) -> bool {
-        return self.container_update_x_req();
+    fn update_x_req(&self, layout_ctx: &ElementLayoutContext) -> bool {
+        return self.container_update_x_req(layout_ctx);
     }
 
     fn allocate_x(&self, x_alloc: &LAlloc) -> bool {
@@ -172,8 +173,8 @@ impl TBinElement for RootElement {
 }
 
 impl TRootElement for RootElement {
-    fn root_requisition_x(&self) -> f64 {
-        self.update_x_req();
+    fn root_requisition_x(&self, layout_ctx: &ElementLayoutContext) -> f64 {
+        self.update_x_req(layout_ctx);
         return self.m.borrow().req.x_req.size().size();
     }
 

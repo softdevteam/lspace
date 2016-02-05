@@ -7,6 +7,7 @@ use layout::lalloc::LAlloc;
 use layout::lreq::LReq;
 use geom::bbox2::BBox2;
 use graphics::border::Border;
+use elements::element_ctx::ElementLayoutContext;
 use elements::element_layout::{ElementReq, ElementAlloc};
 use elements::element::{TElement, ElementRef, ElementParentMut};
 use elements::container::TContainerElement;
@@ -106,8 +107,8 @@ impl TElement for BorderElement {
     }
 
     // Update layout
-    fn update_x_req(&self) -> bool {
-        self.container_update_x_req()
+    fn update_x_req(&self, layout_ctx: &ElementLayoutContext) -> bool {
+        self.container_update_x_req(layout_ctx)
     }
 
     fn allocate_x(&self, x_alloc: &LAlloc) -> bool {

@@ -14,6 +14,11 @@ macro_rules! py_wrapper_destructor {
 }
 
 
+//
+// Python wrapper that manages a primitive Rust object that can be cloned as necessary
+// for the purpose of using it where it is required; i.e. getting the value contained by
+// the wrapper clones the contained value.
+//
 #[derive(Copy, Clone)]
 pub struct PyPrimWrapper<T: Clone> {
     val: T
@@ -151,26 +156,31 @@ impl <T: ?Sized> PyWrapper<T> {
 }
 
 
-pub struct PyRcWrapper<T> {
+//
+// Python wrapper that manages a Rust object wrapped in `Rc`, allowing shared ownership.
+//
+pub struct PyRcWrapper<T: ?Sized> {
     val: Rc<T>
 }
 
 impl <T> PyRcWrapper<T> {
-    pub fn new(x: Rc<T>) -> PyRcWrapper<T> {
-        PyRcWrapper{val: x}
-    }
-
     pub fn from_value(x: T) -> PyRcWrapper<T> {
         PyRcWrapper{val: Rc::new(x)}
+    }
+
+    pub fn get_rc(wrapper: &PyRcWrapper<T>) -> Rc<T> {
+        return wrapper.val.clone();
+    }
+}
+
+impl <T: ?Sized> PyRcWrapper<T> {
+    pub fn new(x: Rc<T>) -> PyRcWrapper<T> {
+        PyRcWrapper{val: x}
     }
 
     pub fn destroy(wrapper: Box<PyRcWrapper<T>>) {
         // No-op
         // This method is present so that calling it from exported FFI functions
         // ensures that the types are correct, ensuring that the reference is correctly destroyed
-    }
-
-    pub fn get_rc(wrapper: &PyRcWrapper<T>) -> Rc<T> {
-        return wrapper.val.clone();
     }
 }
