@@ -51,10 +51,9 @@ pub struct LSpaceWidget {
 }
 
 impl LSpaceWidget {
-    pub fn new(content: Pres) -> Rc<RefCell<LSpaceWidget>> {
+    pub fn new_with_area(area: LSpaceArea) -> Rc<RefCell<LSpaceWidget>> {
         let drawing_area = Rc::new(gtk::DrawingArea::new().unwrap());
-        let wrapped_state = Rc::new(LSpaceArea::new());
-        wrapped_state.set_content_pres(content);
+        let wrapped_state = Rc::new(area);
 
         let instance = LSpaceWidget{drawing_area: drawing_area.clone(),
             state: wrapped_state.clone()
@@ -170,7 +169,6 @@ impl LSpaceWidget {
 
         {
             let state_clone = wrapped_state.clone();
-            let inst_clone = wrapped_instance.clone();
             drawing_area.connect_draw(move |widget, cairo_context| {
                 state_clone.on_draw(&cairo_context);
                 return Inhibit(true);
@@ -178,6 +176,12 @@ impl LSpaceWidget {
         }
 
         return wrapped_instance;
+    }
+
+    pub fn new(content: Pres) -> Rc<RefCell<LSpaceWidget>> {
+        let area = LSpaceArea::new();
+        area.set_content_pres(content);
+        return LSpaceWidget::new_with_area(area);
     }
 
     pub fn gtk_widget(&self) -> Rc<gtk::DrawingArea> {
