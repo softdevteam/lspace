@@ -1,5 +1,8 @@
 use layout::lreq::LReq;
 use layout::lalloc::LAlloc;
+use geom::point2::Point2;
+use geom::vector2::Vector2;
+use geom::bbox2::BBox2;
 
 use elements::element::{TElement, ElementRef};
 
@@ -135,5 +138,16 @@ impl ElementAlloc {
 
             p_ref = p.get_parent();
         }
+    }
+
+
+    pub fn local_bbox(&self) -> BBox2 {
+        BBox2::from_lower_size(Point2::origin(),
+                               Vector2::new(self.x_alloc.actual_size(), self.y_alloc.actual_size()))
+
+    }
+
+    pub fn local_bbox_to_parent_space(&self, bbox: &BBox2) -> BBox2 {
+        bbox.offset(&Vector2::new(self.x_alloc.pos_in_parent(), self.y_alloc.pos_in_parent()))
     }
 }

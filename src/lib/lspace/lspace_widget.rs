@@ -14,8 +14,9 @@ use gtk::signal::Inhibit;
 use input::inputmodifier::{self, InputModifierState};
 
 use geom::point2::Point2;
+use geom::bbox2::BBox2;
 use pres::pres::Pres;
-use lspace_area::LSpaceArea;
+use lspace_area::{LSpaceArea, TLSpaceListener};
 
 
 
@@ -44,21 +45,21 @@ fn gdk_modifier_to_input_mod_state(gdk_state: gdk_ffi::GdkModifierType) -> Input
     InputModifierState::from_values(value)
 }
 
-pub struct LSpaceWidget {
-    drawing_area: Rc<gtk::DrawingArea>,
-    state: Rc<LSpaceArea>
 
+struct LSpaceWidgetMut {
+    drawing_area: Rc<gtk::DrawingArea>,
+    area: Rc<LSpaceArea>
 }
 
-impl LSpaceWidget {
-    pub fn new_with_area(area: LSpaceArea) -> Rc<RefCell<LSpaceWidget>> {
+impl LSpaceWidgetMut {
+    pub fn new_with_area(area: LSpaceArea) -> LSpaceWidgetMut {
         let drawing_area = Rc::new(gtk::DrawingArea::new().unwrap());
+        drawing_area.set_can_focus(true);
         let wrapped_state = Rc::new(area);
 
-        let instance = LSpaceWidget{drawing_area: drawing_area.clone(),
-            state: wrapped_state.clone()
+        let instance = LSpaceWidgetMut{drawing_area: drawing_area.clone(),
+            area: wrapped_state.clone()
         };
-        let wrapped_instance = Rc::new(RefCell::new(instance));
 
         {
             let state_clone = wrapped_state.clone();
@@ -175,16 +176,52 @@ impl LSpaceWidget {
             });
         }
 
-        return wrapped_instance;
+        return instance;
     }
 
-    pub fn new(content: Pres) -> Rc<RefCell<LSpaceWidget>> {
+    pub fn new(content: Pres) -> LSpaceWidgetMut {
         let area = LSpaceArea::new();
         area.set_content_pres(content);
-        return LSpaceWidget::new_with_area(area);
+        return LSpaceWidgetMut::new_with_area(area);
     }
 
     pub fn gtk_widget(&self) -> Rc<gtk::DrawingArea> {
         return self.drawing_area.clone();
     }
 }
+
+
+pub struct LSpaceWidget {
+    m: RefCell<LSpaceWidgetMut>
+}
+
+impl LSpaceWidget {
+    pub fn new_with_area(area: LSpaceArea) -> Rc<LSpaceWidget> {
+        let inst = Rc::new(LSpaceWidget{m: RefCell::new(LSpaceWidgetMut::new_with_area(area))});
+        let listener: Rc<TLSpaceListener> = inst.clone();
+        inst.m.borrow().area.set_lspace_listener(Some(&listener));
+        inst
+    }
+
+    pub fn new(content: Pres) -> Rc<LSpaceWidget> {
+        let inst = Rc::new(LSpaceWidget{m: RefCell::new(LSpaceWidgetMut::new(content))});
+        let listener: Rc<TLSpaceListener> = inst.clone();
+        inst.m.borrow().area.set_lspace_listener(Some(&listener));
+        inst
+    }
+
+    pub fn gtk_widget(&self) -> Rc<gtk::DrawingArea> {
+        return self.m.borrow().gtk_widget();
+    }
+}
+
+impl TLSpaceListener for LSpaceWidget {
+    fn notify_queue_redraw(&self, rect: &BBox2) {
+        // When the Cairo bindings finally implement the necessary types to allow the
+        // `queue_draw_region()` method to be called, use it instead, as it allows you to only
+        // redraw the part of the widget that has changed, rather than the whole thing.
+        println!("LSpaceWidget::notify_queue_redraw");
+        self.m.borrow().drawing_area.queue_draw();
+    }
+}
+

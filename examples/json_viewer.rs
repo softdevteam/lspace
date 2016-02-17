@@ -309,7 +309,7 @@ fn main() {
     // Create the LSpace widget, showing our content
     println!("Displaying....");
     let lspace = LSpaceWidget::new(content);
-    let widget = lspace.borrow().gtk_widget();
+    let widget = lspace.gtk_widget();
 
     // Create a GTK window in which to place it
     let window = gtk::Window::new(gtk::WindowType::Toplevel).unwrap();

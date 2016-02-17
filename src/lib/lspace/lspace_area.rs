@@ -2,6 +2,7 @@
 
 extern crate time;
 
+use std::rc::Rc;
 use std::cell::{Ref, RefCell};
 
 use cairo::{Context, RectangleInt, ffi};
@@ -20,6 +21,10 @@ use pres::pres::{Pres, TPres, PresBuildCtx, PyPresOwned};
 use pres::primitive::root_containing;
 use pyrs::PyWrapper;
 
+
+pub trait TLSpaceListener {
+    fn notify_queue_redraw(&self, rect: &BBox2);
+}
 
 pub struct LSpaceAreaMut {
     width: i32,
@@ -107,10 +112,12 @@ impl LSpaceAreaMut {
 
     pub fn on_key_press(&mut self, mod_state: InputModifierState, key_val: u32, key_string: String) {
         self.input_mods = mod_state;
+        self.input_keyboard.on_key_press(mod_state, key_val, key_string);
     }
 
     pub fn on_key_release(&mut self, mod_state: InputModifierState, key_val: u32, key_string: String) {
         self.input_mods = mod_state;
+        self.input_keyboard.on_key_release(mod_state, key_val, key_string);
     }
 
     pub fn on_draw(&mut self, cairo_ctx: &Context) {
@@ -120,11 +127,12 @@ impl LSpaceAreaMut {
     }
 
     fn layout(&mut self, cairo_ctx: &Context) {
-        if self.layout_required {
+        if self.layout_required || true {
             let e = self.root_element.as_root_element().unwrap();
             let t1 = time::precise_time_ns();
             let layout_ctx = ElementLayoutContext::new(&self.elem_ctx, cairo_ctx);
             let rx = e.root_requisition_x(&layout_ctx);
+            println!("Layout: rx={:?}", rx);
             e.root_allocate_x(self.width as f64);
             let ry = e.root_requisition_y();
             e.root_allocate_y(ry);
@@ -159,6 +167,11 @@ impl LSpaceArea {
         Ref::map(mm, |x| &x.elem_ctx)
     }
 
+    pub fn keyboard(&self) -> Ref<Keyboard> {
+        let mm = self.m.borrow();
+        Ref::map(mm, |x| &x.input_keyboard)
+    }
+
     pub fn set_content_element(&self, content: ElementRef) {
         let mut mm = self.m.borrow_mut();
         mm.set_content_element(content)
@@ -167,6 +180,11 @@ impl LSpaceArea {
     pub fn set_content_pres(&self, p: Pres) {
         let mut mm = self.m.borrow_mut();
         mm.set_content_pres(p)
+    }
+
+
+    pub fn set_lspace_listener(&self, listener: Option<&Rc<TLSpaceListener>>) {
+        self.m.borrow().root_element.as_root_element().unwrap().root_set_lspace_listener(listener);
     }
 
 

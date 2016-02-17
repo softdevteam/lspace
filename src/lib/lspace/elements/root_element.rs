@@ -1,5 +1,6 @@
 use cairo::Context;
 
+use std::rc::{Rc, Weak};
 use std::cell::{RefCell, Ref, RefMut};
 
 use layout::lalloc::LAlloc;
@@ -12,6 +13,7 @@ use elements::element::{TElement, ElementRef};
 use elements::container::TContainerElement;
 use elements::bin::{TBinElement, BinComponentMut};
 use elements::container_sequence::{TContainerSequenceElement};
+use lspace_area::TLSpaceListener;
 
 
 pub trait TRootElement : TBinElement {
@@ -20,6 +22,9 @@ pub trait TRootElement : TBinElement {
     fn root_requisition_y(&self) -> f64;
 
     fn root_allocate_y(&self, height: f64);
+
+    fn root_set_lspace_listener(&self, listener: Option<&Rc<TLSpaceListener>>);
+    fn root_queue_redraw(&self, rect: &BBox2);
 }
 
 
@@ -27,6 +32,7 @@ struct RootElementMut {
     req: ElementReq,
     alloc: ElementAlloc,
     bin: BinComponentMut,
+    listener: Option<Weak<TLSpaceListener>>,
 }
 
 pub struct RootElement {
@@ -37,7 +43,7 @@ impl RootElement {
     pub fn new() -> RootElement {
         return RootElement{m: RefCell::new(RootElementMut{
             req: ElementReq::new(), alloc: ElementAlloc::new(),
-            bin: BinComponentMut::new()})};
+            bin: BinComponentMut::new(), listener: None})};
     }
 }
 
@@ -195,6 +201,29 @@ impl TRootElement for RootElement {
         let y_alloc = LAlloc::new_from_req_in_avail_size(&self.m.borrow().req.y_req, 0.0, height);
 
         self.allocate_y(&y_alloc);
+    }
+
+
+
+    fn root_set_lspace_listener(&self, listener: Option<&Rc<TLSpaceListener>>) {
+        let mut mm = self.m.borrow_mut();
+        mm.listener = match listener {
+            Some(l) => Some(Rc::downgrade(&l)),
+            None => None
+        };
+    }
+
+    fn root_queue_redraw(&self, rect: &BBox2) {
+        let mm = self.m.borrow();
+        match mm.listener {
+            Some(ref ref_listener) => {
+                match Weak::upgrade(ref_listener) {
+                    Some (ref l) => {l.notify_queue_redraw(rect);},
+                    None => {}
+                };
+            },
+            None => {}
+        }
     }
 }
 

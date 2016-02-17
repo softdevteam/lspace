@@ -15,7 +15,7 @@ use geom::bbox2::BBox2;
 use geom::colour::{Colour, BLACK, PyColour};
 use elements::element_layout::{ElementReq, ElementAlloc};
 use elements::element_ctx::{ElementContext, ElementLayoutContext};
-use elements::element::{TElement, ElementRef, ElementParentMut, PyElement, PyElementOwned};
+use elements::element::{TElement, ElementRef, ElementParentMut, PyElement, PyElementOwned, queue_resize};
 use elements::container::{TContainerElement};
 use elements::bin::{TBinElement};
 use elements::container_sequence::{TContainerSequenceElement};
@@ -24,7 +24,13 @@ use lspace_area::{LSpaceArea, PyLSpaceArea};
 use pyrs::{PyPrimWrapper, PyWrapper, PyRcWrapper};
 
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub trait TTextElement : TElement {
+    fn get_text(&self) -> Ref<String>;
+    fn set_text(&self, text: String);
+}
+
+
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum TextWeight {
     Normal,
     Bold,
@@ -142,6 +148,10 @@ impl TextElement {
 
 impl TElement for TextElement {
     /// Interface acquisition
+    fn as_text_element(&self) -> Option<&TTextElement> {
+        return Some(self);
+    }
+
     fn as_container(&self) -> Option<&TContainerElement> {
         return None;
     }
@@ -245,6 +255,22 @@ impl TElement for TextElement {
         let mut mm = self.m.borrow_mut();
         mm.alloc.update_y_alloc(y_alloc);
         mm.alloc.y_alloc_updated();
+    }
+}
+
+
+impl TTextElement for TextElement {
+    fn get_text(&self) -> Ref<String> {
+        let mm = self.m.borrow();
+        return Ref::map(mm, |m| &m.text);
+    }
+
+    fn set_text(&self, text: String) {
+        {
+            let mut mm = self.m.borrow_mut();
+            mm.text = text;
+        }
+        queue_resize(self);
     }
 }
 
