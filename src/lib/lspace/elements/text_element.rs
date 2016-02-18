@@ -2,6 +2,9 @@ use std::rc::Rc;
 use std::cell::{RefCell, Ref, RefMut};
 use std::string::String;
 use std::mem::transmute;
+use std::ffi::CStr;
+
+use libc::c_char;
 
 use cairo::Context;
 use cairo_sys::enums::{FontSlant, FontWeight};
@@ -9,15 +12,16 @@ use cairo_sys::enums::{FontSlant, FontWeight};
 use layout::lreq::LReq;
 use layout::lalloc::LAlloc;
 use geom::bbox2::BBox2;
-use geom::colour::{Colour, BLACK};
+use geom::colour::{Colour, BLACK, PyColour};
 use elements::element_layout::{ElementReq, ElementAlloc};
 use elements::element_ctx::{ElementContext, ElementLayoutContext};
-use elements::element::{TElement, ElementRef, ElementParentMut, queue_resize};
+use elements::element::{TElement, ElementRef, ElementParentMut, queue_resize, PyElement, PyElementOwned};
 use elements::container::{TContainerElement};
 use elements::bin::{TBinElement};
 use elements::container_sequence::{TContainerSequenceElement};
 use elements::root_element::{TRootElement};
-use lspace_area::LSpaceArea;
+use lspace_area::{LSpaceArea, PyLSpaceArea};
+use pyrs::{PyPrimWrapper, PyWrapper, PyRcWrapper};
 
 
 pub trait TTextElement : TElement {
@@ -269,6 +273,46 @@ impl TTextElement for TextElement {
         }
         queue_resize(self);
     }
+}
+
+
+pub type PyTextStyleParams = PyRcWrapper<TextStyleParams>;
+pub type PyTextStyleParamsOwned = Box<PyTextStyleParams>;
+
+// Function exported to Python for creating a wrapped `TextStyleParams`
+#[no_mangle]
+pub extern "C" fn new_text_style_params(font_family: *mut c_char, bold: u16, italic: u16,
+                                        size: f64, colour: &PyColour) -> PyTextStyleParamsOwned {
+    let family = unsafe{CStr::from_ptr(font_family)};
+    Box::new(PyTextStyleParams::from_value(TextStyleParams::new(
+        family.to_str().unwrap().to_string(),
+        if bold>0 { TextWeight::Bold } else {TextWeight::Normal},
+        if italic>0 { TextSlant::Italic } else {TextSlant::Normal},
+        size,
+        &PyColour::borrow(colour))))
+}
+
+// Function exported to Python for creating a wrapped `TextStyleParams` with default settings
+#[no_mangle]
+pub extern "C" fn new_text_style_params_default() -> PyTextStyleParamsOwned {
+    Box::new(PyTextStyleParams::from_value(TextStyleParams::default()))
+}
+
+#[no_mangle]
+pub extern "C" fn destroy_text_style_params(wrapper: PyTextStyleParamsOwned) {
+    PyTextStyleParams::destroy(wrapper);
+}
+
+
+// Function exported to Python for creating a wrapped `Text`
+#[no_mangle]
+pub extern "C" fn new_text_element(text: *mut c_char, style: &PyTextStyleParams,
+                                   area: &PyLSpaceArea) -> PyElementOwned {
+    let t = unsafe{CStr::from_ptr(text)};
+    let elem: TextElement = TextElement::new_in_area(t.to_str().unwrap().to_string(),
+                                                     PyTextStyleParams::get_rc(style),
+                                                     &**PyLSpaceArea::borrow(area));
+    Box::new(PyElement::new(Rc::new(elem)))
 }
 
 

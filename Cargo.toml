@@ -24,3 +24,4 @@ debug = true
 [lib]
 name = "lspace"
 path = "src/lib/lspace/mod.rs"
+crate-type = ["rlib", "dylib"]

@@ -5,7 +5,8 @@ extern crate time;
 use std::rc::Rc;
 use std::cell::{Ref, RefCell};
 
-use cairo::Context;
+use cairo::{Context, ffi};
+use glib::translate::*;
 
 use geom::vector2::Vector2;
 use geom::point2::Point2;
@@ -16,7 +17,9 @@ use input::pointer::{Pointer, PointerPosition};
 use elements::element_ctx::{ElementContext, ElementLayoutContext};
 use elements::element::{ElementRef, elem_as_ref};
 use elements::{root_element};
-use pres::pres::{Pres, TPres, PresBuildCtx};
+use pres::pres::{Pres, TPres, PresBuildCtx, PyPresOwned};
+use pres::primitive::root_containing;
+use pyrs::PyWrapper;
 
 
 pub trait TLSpaceListener {
@@ -225,5 +228,39 @@ impl LSpaceArea {
     pub fn on_draw(&self, cairo_ctx: &Context) {
         self.m.borrow_mut().on_draw(cairo_ctx);
     }
+}
+
+
+pub type PyLSpaceArea = PyWrapper<LSpaceArea>;
+pub type PyLSpaceAreaOwned = Box<PyLSpaceArea>;
+
+// Function exported to Python for creating a boxed `TextStyleParams`
+#[no_mangle]
+pub extern "C" fn new_lspace_area() -> Box<PyWrapper<LSpaceArea>> {
+    Box::new(PyWrapper::new(LSpaceArea::new()))
+}
+
+#[no_mangle]
+pub extern "C" fn lspace_area_set_content_pres(area: &PyLSpaceArea,
+                                               content: PyPresOwned) {
+    PyWrapper::borrow(area).set_content_pres(PyWrapper::consume(content));
+}
+
+#[no_mangle]
+pub extern "C" fn lspace_area_on_size_allocate(area: &PyLSpaceArea,
+                                               width: i32, height: i32) {
+    PyWrapper::borrow(area).on_size_allocate(width, height);
+}
+
+#[no_mangle]
+pub extern "C" fn lspace_area_on_draw(area: &PyLSpaceArea,
+                                      ctx_raw: *mut ffi::cairo_t) {
+    let ctx = unsafe { Context::from_glib_none(ctx_raw) };
+    PyWrapper::borrow(area).on_draw(&ctx);
+}
+
+#[no_mangle]
+pub extern "C" fn destroy_lspace_area(wrapper: Box<PyWrapper<LSpaceArea>>) {
+    PyWrapper::destroy(wrapper);
 }
 

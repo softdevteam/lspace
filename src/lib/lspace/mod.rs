@@ -9,6 +9,7 @@ extern crate gtk;
 extern crate libc;
 extern crate glib;
 
+pub mod pyrs;
 pub mod geom;
 pub mod graphics;
 pub mod layout;

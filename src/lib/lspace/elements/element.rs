@@ -14,6 +14,7 @@ use elements::container::{TContainerElement};
 use elements::bin::{TBinElement};
 use elements::container_sequence::{TContainerSequenceElement};
 use elements::root_element::{TRootElement};
+use pyrs::PyRcWrapper;
 
 
 pub type ElementRef = Rc<TElement>;
@@ -147,4 +148,14 @@ impl ElementParentMut {
             Some(pp) => Some(pp.clone())
         };
     }
+}
+
+
+pub type PyElement = PyRcWrapper<TElement>;
+pub type PyElementOwned = Box<PyElement>;
+
+// Function to destroy types that implement `TElement`
+#[no_mangle]
+pub extern "C" fn destroy_element(wrapper: PyElementOwned) {
+    PyElement::destroy(wrapper);
 }

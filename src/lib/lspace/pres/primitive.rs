@@ -1,4 +1,8 @@
 use std::rc::Rc;
+use std::ffi::CStr;
+use std::slice;
+use std::mem;
+use libc::c_char;
 
 use graphics::border;
 use layout::flow_layout;
@@ -6,7 +10,8 @@ use elements::element::{TElement, ElementRef, elem_as_ref};
 use elements::{text_element, column, row, flow, root_element, border_element};
 use elements::bin::{TBinElement};
 use elements::container_sequence::{TContainerSequenceElement};
-use pres::pres::{Pres, TPres, PresBuildCtx};
+use pres::pres::{Pres, TPres, PresBuildCtx, PyPres, PyPresOwned};
+use pyrs::{PyPrimWrapper, PyWrapper};
 
 
 pub struct Text {
@@ -136,4 +141,105 @@ pub fn root_containing(p: &Pres, ctx: &PresBuildCtx) -> ElementRef {
     let elem = elem_as_ref(root_element::RootElement::new());
     elem.as_bin().unwrap().set_child(&elem, child);
     return elem;
+}
+
+
+
+
+pub struct TextStyleRef {
+    val: Rc<text_element::TextStyleParams>
+}
+
+
+
+pub type PyFlowIndent = PyPrimWrapper<flow_layout::FlowIndent>;
+pub type PyFlowIntendOwned = Box<PyFlowIndent>;
+
+// Functions exported to Python for creating wrapped `FlowIndent`
+#[no_mangle]
+pub extern "C" fn new_flow_indent_no_indent() -> PyFlowIntendOwned {
+    Box::new(PyFlowIndent::new(flow_layout::FlowIndent::NoIndent))
+}
+
+#[no_mangle]
+pub extern "C" fn new_flow_indent_first(indent: f64) -> PyFlowIntendOwned {
+    Box::new(PyFlowIndent::new(flow_layout::FlowIndent::First{indent: indent}))
+}
+
+#[no_mangle]
+pub extern "C" fn new_flow_indent_except_first(indent: f64) -> PyFlowIntendOwned {
+    Box::new(PyFlowIndent::new(flow_layout::FlowIndent::ExceptFirst{indent: indent}))
+}
+
+#[no_mangle]
+pub extern "C" fn destroy_flow_indent(wrapper: PyFlowIntendOwned) {
+    PyFlowIndent::destroy(wrapper);
+}
+
+
+
+// Function exported to Python for creating a wrapped `Text`
+#[no_mangle]
+pub extern "C" fn new_text(text: *mut c_char,
+                           style: &text_element::PyTextStyleParams) -> PyPresOwned {
+    let t = unsafe{CStr::from_ptr(text)};
+    Box::new(PyPres::from_boxed(Text::new(t.to_str().unwrap().to_string(),
+                                          text_element::PyTextStyleParams::get_rc(style))))
+}
+
+
+// Function exported to Python for creating a wrapped `Border`
+#[no_mangle]
+pub extern "C" fn new_border_pres(child: PyPresOwned, border: &border::PyBorder) -> PyPresOwned {
+    Box::new(PyPres::from_boxed(Border::new(PyPres::consume(child),
+                                            border::PyBorder::get_rc(border))))
+}
+
+
+// Helper function for converting a C array of wrapped children into a Vec<Pres>
+fn unwrap_and_consume_pres_array(pres_array: *mut PyPresOwned, n_pres: usize) -> Vec<Pres>{
+    // Convert from raw to a slice
+    let pres_slice: &[PyPresOwned] = unsafe{slice::from_raw_parts(pres_array, n_pres)};
+    // Consume
+    let pres_vec: Vec<Pres> = pres_slice.iter().map(|p_ref: &PyPresOwned| {
+        unsafe {
+            // Presentations are of type `PyPresOwned`; a boxed type or pointer
+            // `p` is a `&PyPresOwned`
+            // Transmute:
+            // - &PyPresOwned -> *PyPresOwned -> *usize
+            let p_as_usize_ptr: *const usize = mem::transmute(p_ref);
+            // Deref the *usize pointer to get a `usize` (transmuted `PyPresOwned`)
+            let p_as_usize: usize = *p_as_usize_ptr;
+            // Transmute the `usize` back to `PyPresOwned`
+            let p: PyPresOwned = mem::transmute(p_as_usize);
+            // Consume and return
+            PyPres::consume(p)
+        }
+    }).collect();
+    pres_vec
+}
+
+// Function exported to Python for creating a wrapped `Column`
+#[no_mangle]
+pub extern "C" fn new_column(children_arr: *mut PyPresOwned, n_children: usize,
+                             y_spacing: f64) -> PyPresOwned {
+    let children = unwrap_and_consume_pres_array(children_arr, n_children);
+    Box::new(PyPres::from_boxed(Column::new_full(children, y_spacing)))
+}
+
+// Function exported to Python for creating a wrapped `Row`
+#[no_mangle]
+pub extern "C" fn new_row(children_arr: *mut PyPresOwned, n_children: usize,
+                          x_spacing: f64) -> PyPresOwned {
+    let children = unwrap_and_consume_pres_array(children_arr, n_children);
+    Box::new(PyPres::from_boxed(Row::new_full(children, x_spacing)))
+}
+
+// Function exported to Python for creating a wrapped `Flow`
+#[no_mangle]
+pub extern "C" fn new_flow(children_arr: *mut PyPresOwned, n_children: usize,
+                           x_spacing: f64, y_spacing: f64, indent: &PyFlowIndent) -> PyPresOwned {
+    let children = unwrap_and_consume_pres_array(children_arr, n_children);
+    Box::new(PyPres::from_boxed(Flow::new_full(children, x_spacing, y_spacing,
+                                               PyFlowIndent::get_value(indent))))
 }
