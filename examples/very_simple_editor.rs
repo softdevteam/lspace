@@ -4,6 +4,7 @@
 
 extern crate time;
 extern crate gtk;
+extern crate gdk;
 extern crate cairo;
 extern crate lspace;
 extern crate regex;
@@ -18,6 +19,9 @@ use regex::Regex;
 
 use gtk::traits::*;
 use gtk::signal::Inhibit;
+
+// for a list of key names see: http://gtk-rs.org/docs/gdk/enums/key/index.html
+use gdk::enums::key;
 
 use lspace::geom::colour::Colour;
 use lspace::elements::element::{ElementRef, elem_as_ref};
@@ -45,12 +49,15 @@ impl TKeyboardInteractor for LineEditor {
         if event.event_type() == KeyEventType::Press {
             let mut text = self.text_elem.as_text_element().unwrap().get_text().clone();
             println!("Key val = {}", event.key_val());
-            if event.key_val() == 8 {
+            if event.key_val() == key::BackSpace as u32 {
                 // Backspace
                 println!("Deleting");
                 let n = text.len();
                 let new_text = String::from(&text[0..n-1]);
                 self.text_elem.as_text_element().unwrap().set_text(new_text);
+            } else if event.key_val() == key::Shift_L as u32 ||
+                      event.key_val() == key::Shift_R as u32 {
+                // ignore
             }
             else {
                 println!("Inserting {:?}", event.key_string());
@@ -65,8 +72,6 @@ impl TKeyboardInteractor for LineEditor {
 fn main() {
     // Initialise GTK
     gtk::init().unwrap_or_else(|_| panic!("Failed to initialize GTK."));
-
-
 
     let text_style = Rc::new(text_element::TextStyleParams::default());
     let eol_style = Rc::new(text_element::TextStyleParams::new(String::from("Helvetica"),
