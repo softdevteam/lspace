@@ -269,6 +269,7 @@ impl TTextElement for TextElement {
         {
             let mut mm = self.m.borrow_mut();
             mm.text = text;
+            mm.req_up_to_date = false;
         }
         queue_resize(self);
     }

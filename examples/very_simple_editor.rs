@@ -43,11 +43,20 @@ impl LineEditor {
 impl TKeyboardInteractor for LineEditor {
     fn on_key_event(&self, event: &KeyEvent) {
         if event.event_type() == KeyEventType::Press {
-            println!("on_key_event: press {}", event.key_string());
-
-            let text = self.text_elem.as_text_element().unwrap().get_text().clone();
-            let new_text = text + event.key_string();
-            self.text_elem.as_text_element().unwrap().set_text(new_text);
+            let mut text = self.text_elem.as_text_element().unwrap().get_text().clone();
+            println!("Key val = {}", event.key_val());
+            if event.key_val() == 8 {
+                // Backspace
+                println!("Deleting");
+                let n = text.len();
+                let new_text = String::from(&text[0..n-1]);
+                self.text_elem.as_text_element().unwrap().set_text(new_text);
+            }
+            else {
+                println!("Inserting {:?}", event.key_string());
+                let new_text = text + event.key_string();
+                self.text_elem.as_text_element().unwrap().set_text(new_text);
+            }
         }
     }
 }

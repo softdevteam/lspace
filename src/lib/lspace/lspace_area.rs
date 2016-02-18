@@ -132,7 +132,6 @@ impl LSpaceAreaMut {
             let t1 = time::precise_time_ns();
             let layout_ctx = ElementLayoutContext::new(&self.elem_ctx, cairo_ctx);
             let rx = e.root_requisition_x(&layout_ctx);
-            println!("Layout: rx={:?}", rx);
             e.root_allocate_x(self.width as f64);
             let ry = e.root_requisition_y();
             e.root_allocate_y(ry);
