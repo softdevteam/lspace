@@ -7,6 +7,7 @@ use layout::lalloc::LAlloc;
 use layout::horizontal_layout;
 use geom::bbox2::BBox2;
 
+use elements::element_ctx::ElementLayoutContext;
 use elements::element_layout::{ElementReq, ElementAlloc};
 use elements::element::{TElement, ElementRef, ElementParentMut};
 use elements::container::TContainerElement;
@@ -95,8 +96,8 @@ impl TElement for RowElement {
     }
 
     // Update layout
-    fn update_x_req(&self) -> bool {
-        return self.container_update_x_req();
+    fn update_x_req(&self, layout_ctx: &ElementLayoutContext) -> bool {
+        return self.container_update_x_req(layout_ctx);
     }
 
     fn allocate_x(&self, x_alloc: &LAlloc) -> bool {
@@ -119,7 +120,7 @@ impl TContainerElement for RowElement {
     }
 
     fn compute_x_req(&self) -> LReq {
-        let mut mm = self.m.borrow_mut();
+        let mm = self.m.borrow();
         let child_reqs: Vec<Ref<ElementReq>> = mm.container_seq.get_children().iter().map(
             |c| c.element_req()).collect();
         let child_x_reqs: Vec<&LReq> = child_reqs.iter().map(|c| &c.x_req).collect();
@@ -127,7 +128,7 @@ impl TContainerElement for RowElement {
     }
 
     fn compute_child_x_allocs(&self) -> Vec<LAlloc> {
-        let mut mm = self.m.borrow_mut();
+        let mm = self.m.borrow();
         let child_reqs: Vec<Ref<ElementReq>> = mm.container_seq.get_children().iter().map(
             |c| c.element_req()).collect();
         let child_x_reqs: Vec<&LReq> = child_reqs.iter().map(|c| &c.x_req).collect();
@@ -139,7 +140,7 @@ impl TContainerElement for RowElement {
     }
 
     fn compute_y_req(&self) -> LReq {
-        let mut mm = self.m.borrow_mut();
+        let mm = self.m.borrow();
         let child_reqs: Vec<Ref<ElementReq>> = mm.container_seq.get_children().iter().map(
             |c| c.element_req()).collect();
         let child_y_reqs: Vec<&LReq> = child_reqs.iter().map(|c| &c.y_req).collect();
@@ -147,7 +148,7 @@ impl TContainerElement for RowElement {
     }
 
     fn compute_child_y_allocs(&self) -> Vec<LAlloc> {
-        let mut mm = self.m.borrow_mut();
+        let mm = self.m.borrow();
         let child_reqs: Vec<Ref<ElementReq>> = mm.container_seq.get_children().iter().map(
             |c| c.element_req()).collect();
         let child_y_reqs: Vec<&LReq> = child_reqs.iter().map(|c| &c.y_req).collect();

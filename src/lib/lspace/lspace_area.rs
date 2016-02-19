@@ -3,274 +3,227 @@
 extern crate time;
 
 use std::rc::Rc;
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 
-use gdk::{
-    EventAny,
-    EventButton,
-    EventConfigure,
-    EventCrossing,
-    EventExpose,
-    EventFocus,
-    EventGrabBroken,
-    EventKey,
-    EventMotion,
-    EventProperty,
-    EventProximity,
-    EventScroll,
-    EventWindowState,
-    Screen,
-};
-use gtk;
-use gtk::traits::*;
-use gtk::signal::Inhibit;
-use cairo::{Context, RectangleInt};
+use cairo::Context;
 
 use geom::vector2::Vector2;
 use geom::point2::Point2;
 use geom::bbox2::BBox2;
-use elements::element_ctx::ElementContext;
-use elements::element::{TElement, ElementRef};
-use elements::root_element::RootElement;
-use pres::pres::{Pres, PresBuildCtx};
-use pres::primitive::root_containing;
+use input::inputmodifier::InputModifierState;
+use input::keyboard::Keyboard;
+use input::pointer::{Pointer, PointerPosition};
+use elements::element_ctx::{ElementContext, ElementLayoutContext};
+use elements::element::{ElementRef, elem_as_ref};
+use elements::{root_element};
+use pres::pres::{Pres, TPres, PresBuildCtx};
 
 
-struct LSpaceAreaState {
+pub trait TLSpaceListener {
+    fn notify_queue_redraw(&self, rect: &BBox2);
+}
+
+pub struct LSpaceAreaMut {
     width: i32,
     height: i32,
 
-    elem_ctx: RefCell<ElementContext>,
+    input_mods: InputModifierState,
+    input_keyboard: Keyboard,
+    input_pointer: Pointer,
 
-    content: Pres,
+    elem_ctx: ElementContext,
 
-    elem: Option<ElementRef>,
+    root_element: ElementRef,
 
-    initialised: bool,
-    layout_required: bool
+    layout_required: bool,
 }
 
-impl LSpaceAreaState {
-    fn new(content: Pres) -> LSpaceAreaState {
-        return LSpaceAreaState{width: 100, height: 100, content: content,
-            elem_ctx: RefCell::new(ElementContext::new()),
-            elem: None,
-            initialised: false,
+impl LSpaceAreaMut {
+    pub fn new() -> LSpaceAreaMut {
+        let root_elem = elem_as_ref(root_element::RootElement::new());
+
+        return LSpaceAreaMut{width: 100, height: 100,
+            input_mods: InputModifierState::new(),
+            input_keyboard: Keyboard::new(),
+            input_pointer: Pointer::new(),
+            elem_ctx: ElementContext::new(),
+            root_element: root_elem,
             layout_required: true};
     }
 
-    fn new_document_in_root(&mut self, cairo_ctx: &Context) -> ElementRef {
-        let pres_ctx = PresBuildCtx::new(&self.elem_ctx, cairo_ctx);
-        let root_elem = root_containing(&self.content, &pres_ctx);
-        return root_elem;
+    pub fn set_content_element(&mut self, content: ElementRef) {
+        self.root_element.as_bin().unwrap().set_child(&self.root_element, content);
     }
 
-    fn initialise(&mut self, cairo_ctx: &Context) {
-        if !self.initialised {
-            cairo_ctx.save();
-            match &self.elem {
-                &None => {
-                    self.elem = Some(self.new_document_in_root(cairo_ctx));
-                },
-                &_ => {}
-            };
-            cairo_ctx.restore();
-
-            self.initialised = true;
-        }
+    pub fn set_content_pres(&mut self, p: Pres) {
+        let pres_ctx = PresBuildCtx::new(&self.elem_ctx);
+        let child = p.build(&pres_ctx);
+        self.root_element.as_bin().unwrap().set_child(&self.root_element, child);
     }
 
-    fn on_realize(&mut self) {
+    pub fn on_realize(&mut self) {
     }
 
-    fn on_unrealize(&mut self) {
+    pub fn on_unrealize(&mut self) {
     }
 
-    fn on_size_allocate(&mut self, rect: &RectangleInt) {
-        self.width = rect.width as i32;
-        self.height = rect.height as i32;
+    pub fn on_size_allocate(&mut self, width: i32, height: i32) {
+        self.width = width;
+        self.height = height;
 
         self.layout_required = true;
     }
 
-    fn on_button_press(&mut self, event_button: &EventButton) {
+    pub fn on_button_press(&mut self, mod_state: InputModifierState, pos: Point2, button: u32) {
+        self.input_mods = mod_state;
+        self.input_pointer.set_position(PointerPosition::at_position(pos));
     }
 
-    fn on_button_release(&mut self, event_button: &EventButton) {
+    pub fn on_button_release(&mut self, mod_state: InputModifierState, pos: Point2, button: u32) {
+        self.input_mods = mod_state;
+        self.input_pointer.set_position(PointerPosition::at_position(pos));
     }
 
-    fn on_key_press(&mut self, event_key: &EventKey) {
+    pub fn on_enter(&mut self, mod_state: InputModifierState, pos: Point2) {
+        self.input_mods = mod_state;
+        self.input_pointer.set_position(PointerPosition::at_position(pos));
     }
 
-    fn on_key_release(&mut self, event_key: &EventKey) {
+    pub fn on_leave(&mut self, mod_state: InputModifierState, pos: Point2) {
+        self.input_mods = mod_state;
+        self.input_pointer.set_position(PointerPosition::out_of_bounds());
     }
 
-    fn on_enter(&mut self, event_crossing: &EventCrossing) {
+    pub fn on_motion(&mut self, mod_state: InputModifierState, pos: Point2) {
+        self.input_mods = mod_state;
+        self.input_pointer.set_position(PointerPosition::at_position(pos));
     }
 
-    fn on_leave(&mut self, event_crossing: &EventCrossing) {
+    pub fn on_scroll(&mut self, mod_state: InputModifierState, pos: Point2,
+                 scroll_x: f64, scroll_y: f64) {
+        self.input_mods = mod_state;
+        self.input_pointer.set_position(PointerPosition::at_position(pos));
     }
 
-    fn on_motion(&mut self, event_motion: &EventMotion) {
+    pub fn on_key_press(&mut self, mod_state: InputModifierState, key_val: u32, key_string: String) {
+        self.input_mods = mod_state;
+        self.input_keyboard.on_key_press(mod_state, key_val, key_string);
     }
 
-    fn on_scroll(&mut self, event_scroll: &EventScroll) {
+    pub fn on_key_release(&mut self, mod_state: InputModifierState, key_val: u32, key_string: String) {
+        self.input_mods = mod_state;
+        self.input_keyboard.on_key_release(mod_state, key_val, key_string);
     }
 
-    fn on_draw(&mut self, cairo_ctx: Context) {
-        self.initialise(&cairo_ctx);
-        self.layout();
-        self.draw(&cairo_ctx);
+    pub fn on_draw(&mut self, cairo_ctx: &Context) {
+        self.layout(cairo_ctx);
+        self.draw(cairo_ctx);
     }
 
-    fn layout(&mut self) {
-        if self.layout_required {
-            match &self.elem {
-                &Some(ref re) => {
-                    let e = re.as_root_element().unwrap();
-                    let t1 = time::precise_time_ns();
-                    let rx = e.root_requisition_x();
-                    e.root_allocate_x(self.width as f64);
-                    let ry = e.root_requisition_y();
-                    e.root_allocate_y(ry);
-                    let t2 = time::precise_time_ns();
-                    println!("Layout time: {}", (t2-t1) as f64 * 1.0e-9);
-                },
-                &None => {}
-            }
+    fn layout(&mut self, cairo_ctx: &Context) {
+        if self.layout_required || true {
+            let e = self.root_element.as_root_element().unwrap();
+            let layout_ctx = ElementLayoutContext::new(&self.elem_ctx, cairo_ctx);
+            let rx = e.root_requisition_x(&layout_ctx);
+            e.root_allocate_x(self.width as f64);
+            let ry = e.root_requisition_y();
+            e.root_allocate_y(ry);
             self.layout_required = false;
         }
     }
 
     fn draw(&self, cairo_ctx: &Context) {
-        match &self.elem {
-            &Some(ref re) => {
-                let e = re.as_root_element().unwrap();
-                let t1 = time::precise_time_ns();
-                e.draw(cairo_ctx, &BBox2::from_lower_size(Point2::origin(),
-                        Vector2::new(self.width as f64, self.height as f64)));
-                let t2 = time::precise_time_ns();
-                println!("Render time: {}", (t2-t1) as f64 * 1.0e-9);
-            },
-            &None => {}
-        }
+        let e = self.root_element.as_root_element().unwrap();
+        let t1 = time::precise_time_ns();
+        e.draw(cairo_ctx, &BBox2::from_lower_size(Point2::origin(),
+                Vector2::new(self.width as f64, self.height as f64)));
+        let t2 = time::precise_time_ns();
     }
 }
 
 
 pub struct LSpaceArea {
-    drawing_area: gtk::DrawingArea,
-    state: Rc<RefCell<LSpaceAreaState>>
+    m: RefCell<LSpaceAreaMut>
 }
 
 impl LSpaceArea {
-    pub fn new(content: Pres) -> Rc<RefCell<LSpaceArea>> {
-        let drawing_area = gtk::DrawingArea::new().unwrap();
-        let wrapped_state = Rc::new(RefCell::new(LSpaceAreaState::new(content)));
-
-        let instance = LSpaceArea{drawing_area: drawing_area,
-            state: wrapped_state.clone()
-        };
-        let wrapped_instance = Rc::new(RefCell::new(instance));
-
-        {
-            let state_clone = wrapped_state.clone();
-            wrapped_instance.borrow().drawing_area.connect_realize(move |widget| {
-                state_clone.borrow_mut().on_realize();
-            });
-        }
-
-        {
-            let state_clone = wrapped_state.clone();
-            wrapped_instance.borrow().drawing_area.connect_unrealize(move |widget| {
-                state_clone.borrow_mut().on_unrealize();
-            });
-        }
-
-        {
-            let state_clone = wrapped_state.clone();
-            wrapped_instance.borrow().drawing_area.connect_size_allocate(move |widget, rect| {
-                state_clone.borrow_mut().on_size_allocate(rect);
-            });
-        }
-
-        {
-            let state_clone = wrapped_state.clone();
-            wrapped_instance.borrow().drawing_area.connect_button_press_event(move |widget, event_button| {
-                state_clone.borrow_mut().on_button_press(event_button);
-                return Inhibit(true);
-            });
-        }
-
-        {
-            let state_clone = wrapped_state.clone();
-            wrapped_instance.borrow().drawing_area.connect_button_release_event(move |widget, event_button| {
-                state_clone.borrow_mut().on_button_release(event_button);
-                return Inhibit(true);
-            });
-        }
-
-        {
-            let state_clone = wrapped_state.clone();
-            wrapped_instance.borrow().drawing_area.connect_key_press_event(move |widget, event_key| {
-                state_clone.borrow_mut().on_key_press(event_key);
-                return Inhibit(true);
-            });
-        }
-
-        {
-            let state_clone = wrapped_state.clone();
-            wrapped_instance.borrow().drawing_area.connect_key_release_event(move |widget, event_key| {
-                state_clone.borrow_mut().on_key_release(event_key);
-                return Inhibit(true);
-            });
-        }
-
-        {
-            let state_clone = wrapped_state.clone();
-            wrapped_instance.borrow().drawing_area.connect_enter_notify_event(move |widget, event_crossing| {
-                state_clone.borrow_mut().on_enter(event_crossing);
-                return Inhibit(true);
-            });
-        }
-
-        {
-            let state_clone = wrapped_state.clone();
-            wrapped_instance.borrow().drawing_area.connect_leave_notify_event(move |widget, event_crossing| {
-                state_clone.borrow_mut().on_leave(event_crossing);
-                return Inhibit(true);
-            });
-        }
-
-        {
-            let state_clone = wrapped_state.clone();
-            wrapped_instance.borrow().drawing_area.connect_motion_notify_event(move |widget, event_motion| {
-                state_clone.borrow_mut().on_motion(event_motion);
-                return Inhibit(true);
-            });
-        }
-
-        {
-            let state_clone = wrapped_state.clone();
-            wrapped_instance.borrow().drawing_area.connect_scroll_event(move |widget, event_scroll| {
-                state_clone.borrow_mut().on_scroll(event_scroll);
-                return Inhibit(true);
-            });
-        }
-
-        {
-            let state_clone = wrapped_state.clone();
-            let inst_clone = wrapped_instance.clone();
-            wrapped_instance.borrow().drawing_area.connect_draw(move |widget, cairo_context| {
-                state_clone.borrow_mut().on_draw(cairo_context);
-                return Inhibit(true);
-            });
-        }
-
-        return wrapped_instance;
+    pub fn new() -> LSpaceArea {
+        LSpaceArea{m: RefCell::new(LSpaceAreaMut::new())}
     }
 
-    pub fn gtk_widget(&self) -> &gtk::DrawingArea {
-        return &self.drawing_area;
+    pub fn element_context(&self) -> Ref<ElementContext> {
+        let mm = self.m.borrow();
+        Ref::map(mm, |x| &x.elem_ctx)
+    }
+
+    pub fn keyboard(&self) -> Ref<Keyboard> {
+        let mm = self.m.borrow();
+        Ref::map(mm, |x| &x.input_keyboard)
+    }
+
+    pub fn set_content_element(&self, content: ElementRef) {
+        let mut mm = self.m.borrow_mut();
+        mm.set_content_element(content)
+    }
+
+    pub fn set_content_pres(&self, p: Pres) {
+        let mut mm = self.m.borrow_mut();
+        mm.set_content_pres(p)
+    }
+
+
+    pub fn set_lspace_listener(&self, listener: Option<&Rc<TLSpaceListener>>) {
+        self.m.borrow().root_element.as_root_element().unwrap().root_set_lspace_listener(listener);
+    }
+
+
+    pub fn on_realize(&self) {
+        self.m.borrow_mut().on_realize();
+    }
+
+    pub fn on_unrealize(&self) {
+        self.m.borrow_mut().on_unrealize();
+    }
+
+    pub fn on_size_allocate(&self, width: i32, height: i32) {
+        self.m.borrow_mut().on_size_allocate(width, height);
+    }
+
+    pub fn on_button_press(&self, mod_state: InputModifierState, pos: Point2, button: u32) {
+        self.m.borrow_mut().on_button_press(mod_state, pos, button);
+    }
+
+    pub fn on_button_release(&self, mod_state: InputModifierState, pos: Point2, button: u32) {
+        self.m.borrow_mut().on_button_release(mod_state, pos, button);
+    }
+
+    pub fn on_enter(&self, mod_state: InputModifierState, pos: Point2) {
+        self.m.borrow_mut().on_enter(mod_state, pos);
+    }
+
+    pub fn on_leave(&self, mod_state: InputModifierState, pos: Point2) {
+        self.m.borrow_mut().on_leave(mod_state, pos);
+    }
+
+    pub fn on_motion(&self, mod_state: InputModifierState, pos: Point2) {
+        self.m.borrow_mut().on_motion(mod_state, pos);
+    }
+
+    pub fn on_scroll(&self, mod_state: InputModifierState, pos: Point2,
+                     scroll_x: f64, scroll_y: f64) {
+        self.m.borrow_mut().on_scroll(mod_state, pos, scroll_x, scroll_y);
+    }
+
+    pub fn on_key_press(&self, mod_state: InputModifierState, key_val: u32, key_string: String) {
+        self.m.borrow_mut().on_key_press(mod_state, key_val, key_string);
+    }
+
+    pub fn on_key_release(&self, mod_state: InputModifierState, key_val: u32, key_string: String) {
+        self.m.borrow_mut().on_key_release(mod_state, key_val, key_string);
+    }
+
+    pub fn on_draw(&self, cairo_ctx: &Context) {
+        self.m.borrow_mut().on_draw(cairo_ctx);
     }
 }
+

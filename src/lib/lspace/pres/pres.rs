@@ -1,24 +1,16 @@
 extern crate cairo;
 
-use std::cell::RefCell;
-
-use cairo::Context;
-
 use elements::element::ElementRef;
 use elements::element_ctx::ElementContext;
 
 
-pub type Pres = Box<TPres>;
-
-
 pub struct PresBuildCtx<'a> {
-    pub elem_ctx: &'a RefCell<ElementContext>,
-    pub cairo_ctx: &'a Context,
+    pub elem_ctx: &'a ElementContext,
 }
 
 impl <'a> PresBuildCtx<'a> {
-    pub fn new(elem_ctx: &'a RefCell<ElementContext>, cairo_ctx: &'a Context) -> PresBuildCtx<'a> {
-        return PresBuildCtx{elem_ctx: elem_ctx, cairo_ctx: cairo_ctx};
+    pub fn new(elem_ctx: &'a ElementContext) -> PresBuildCtx<'a> {
+        PresBuildCtx{elem_ctx: elem_ctx}
     }
 }
 
@@ -26,3 +18,5 @@ impl <'a> PresBuildCtx<'a> {
 pub trait TPres {
     fn build(&self, pres_ctx: &PresBuildCtx) -> ElementRef;
 }
+
+pub type Pres = Box<TPres>;

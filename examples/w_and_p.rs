@@ -22,7 +22,7 @@ use lspace::elements::text_element::{TextStyleParams};
 use lspace::pres::pres::Pres;
 use lspace::pres::primitive::Column;
 use lspace::pres::richtext::paragraph;
-use lspace::lspace_area::LSpaceArea;
+use lspace::lspace_widget::LSpaceWidget;
 
 const DOWNLOAD_URL: &'static str = "http://www.gutenberg.org/files/2600/2600.txt";
 const FORMATTED_FILENAME: &'static str = "war_and_peace_formatted.txt";
@@ -98,13 +98,14 @@ fn main() {
 
     println!("Loaded War and Peace; displaying....");
 
-    // Create the LSpace area, showing our content
-    let area = LSpaceArea::new(content);
+    // Create the LSpace widget, showing our content
+    let lspace = LSpaceWidget::new(content);
+    let widget = lspace.gtk_widget();
 
     // Create a GTK window in which to place it
     let window = gtk::Window::new(gtk::WindowType::Toplevel).unwrap();
     window.set_title("War and Peace");
-    window.add(area.borrow().gtk_widget());
+    window.add(&*widget);
     window.set_default_size(800, 500);
 
     // Quit the GTK main loop when the window is closed

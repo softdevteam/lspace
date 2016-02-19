@@ -7,6 +7,7 @@ use layout::lalloc::LAlloc;
 use layout::lreq::LReq;
 use geom::bbox2::BBox2;
 use graphics::border::Border;
+use elements::element_ctx::ElementLayoutContext;
 use elements::element_layout::{ElementReq, ElementAlloc};
 use elements::element::{TElement, ElementRef, ElementParentMut};
 use elements::container::TContainerElement;
@@ -106,8 +107,8 @@ impl TElement for BorderElement {
     }
 
     // Update layout
-    fn update_x_req(&self) -> bool {
-        self.container_update_x_req()
+    fn update_x_req(&self, layout_ctx: &ElementLayoutContext) -> bool {
+        self.container_update_x_req(layout_ctx)
     }
 
     fn allocate_x(&self, x_alloc: &LAlloc) -> bool {
@@ -123,16 +124,14 @@ impl TElement for BorderElement {
     }
 }
 
-const NO_CHILDREN: [ElementRef; 0] = [];
 
 impl TContainerElement for BorderElement {
     fn children(&self) -> Ref<[ElementRef]> {
-        let m = self.m.borrow();
         Ref::map(self.m.borrow(), |m| m.bin.children())
     }
 
     fn compute_x_req(&self) -> LReq {
-        let mut mm = self.m.borrow_mut();
+        let mm = self.m.borrow();
         let child_x_req = match mm.bin.get_child() {
             None => LReq::new_empty(),
             Some(ref ch) => ch.element_req().x_req.clone()
@@ -144,13 +143,13 @@ impl TContainerElement for BorderElement {
         let mm = self.m.borrow();
         match mm.bin.get_child() {
             None => vec![],
-            Some(ref ch) => vec![mm.alloc.x_alloc.apply_border(self.border.left_margin(),
-                                                               self.border.right_margin())]
+            Some(_) => vec![mm.alloc.x_alloc.apply_border(self.border.left_margin(),
+                                                          self.border.right_margin())]
         }
     }
 
     fn compute_y_req(&self) -> LReq {
-        let mut mm = self.m.borrow_mut();
+        let mm = self.m.borrow();
         let child_y_req = match mm.bin.get_child() {
             None => LReq::new_empty(),
             Some(ref ch) => ch.element_req().y_req.clone()
@@ -162,8 +161,8 @@ impl TContainerElement for BorderElement {
         let mm = self.m.borrow();
         match mm.bin.get_child() {
             None => vec![],
-            Some(ref ch) => vec![mm.alloc.y_alloc.apply_border(self.border.top_margin(),
-                                                               self.border.bottom_margin())]
+            Some(_) => vec![mm.alloc.y_alloc.apply_border(self.border.top_margin(),
+                                                          self.border.bottom_margin())]
         }
     }
 }
