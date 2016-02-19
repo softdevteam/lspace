@@ -4,7 +4,8 @@ extern crate time;
 
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::ptr;
+use std::ffi::CStr;
+use libc::c_char;
 
 use gdk::ffi as gdk_ffi;
 use gdk::enums::modifier_type;
@@ -140,11 +141,9 @@ impl LSpaceWidgetMut {
             let state_clone = wrapped_area.clone();
             drawing_area.connect_key_press_event(move |widget, event_key| {
                 let mod_state = gdk_modifier_to_input_mod_state(event_key.state);
-                let mut key_string = String::new();
-                unsafe {
-                    key_string.push(ptr::read(event_key.string));
-                }
-                state_clone.on_key_press(mod_state, event_key.keyval, key_string);
+                let c_key_str = event_key.string as *const c_char;
+                let k_str = unsafe{CStr::from_ptr(c_key_str)}.to_str().unwrap().to_string();
+                state_clone.on_key_press(mod_state, event_key.keyval, k_str);
                 Inhibit(true)
             });
         }
@@ -153,11 +152,9 @@ impl LSpaceWidgetMut {
             let state_clone = wrapped_area.clone();
             drawing_area.connect_key_release_event(move |widget, event_key| {
                 let mod_state = gdk_modifier_to_input_mod_state(event_key.state);
-                let mut key_string = String::new();
-                unsafe {
-                    key_string.push(ptr::read(event_key.string));
-                }
-                state_clone.on_key_release(mod_state, event_key.keyval, key_string);
+                let c_key_str = event_key.string as *const c_char;
+                let k_str = unsafe{CStr::from_ptr(c_key_str)}.to_str().unwrap().to_string();
+                state_clone.on_key_release(mod_state, event_key.keyval, k_str);
                 Inhibit(true)
             });
         }
