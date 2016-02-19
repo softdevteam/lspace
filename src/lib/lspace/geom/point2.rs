@@ -145,7 +145,6 @@ impl <'a, 'b> Sub<&'a Vector2> for &'b Point2 {
 //
 
 mod tests {
-    use std::mem;
     use super::*;
     use geom::vector2::Vector2;
 

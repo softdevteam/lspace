@@ -1,5 +1,4 @@
 use std::rc::Rc;
-use std::cell::RefCell;
 
 use graphics::border;
 use layout::flow_layout;
@@ -24,7 +23,7 @@ impl Text {
 impl TPres for Text {
     fn build(&self, pres_ctx: &PresBuildCtx) -> ElementRef {
         let elem = text_element::TextElement::new(self.text.clone(), self.style.clone(),
-                                                  pres_ctx.cairo_ctx, &pres_ctx.elem_ctx);
+                                                  &pres_ctx.elem_ctx);
         return elem_as_ref(elem);
     }
 }
@@ -36,8 +35,8 @@ pub struct Border {
 }
 
 impl Border {
-    pub fn new(child: Pres, border: &Rc<border::Border>) -> Pres {
-        Box::new(Border{child: child, border: border.clone()})
+    pub fn new(child: Pres, border: Rc<border::Border>) -> Pres {
+        Box::new(Border{child: child, border: border})
     }
 }
 

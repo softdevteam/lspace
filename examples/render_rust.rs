@@ -24,7 +24,7 @@ use lspace::elements::text_element::{TextStyleParams};
 use lspace::pres::pres::Pres;
 use lspace::pres::primitive::{Column, Row, Text};
 use lspace::pres::richtext::paragraph;
-use lspace::lspace_area::LSpaceArea;
+use lspace::lspace_widget::LSpaceWidget;
 
 const FILENAME: &'static str = "examples/render_rust.rs";
 
@@ -136,15 +136,15 @@ fn main() {
         vec![
             TokenDefinition::new("[\\[\\]\\(\\)\\{\\}<>:\\.&'\"]",
                 Rc::new(TextStyleParams::with_family_and_colour(String::from("Courier New"),
-                                                                Colour::new(0.0, 0.5, 1.0, 1.0)))),
+                                                                &Colour::new(0.0, 0.5, 1.0, 1.0)))),
             TokenDefinition::keywords(vec!["let", "mut", "for", "while", "struct", "enum", "trait",
                                            "in", "as", "match", "fn", "return", "use", "const",
                                            "extern", "impl", "pub", "self"],
                 Rc::new(TextStyleParams::with_family_and_colour(String::from("Courier New"),
-                                                                Colour::new(0.7, 0.0, 0.0, 1.0)))),
+                                                                &Colour::new(0.7, 0.0, 0.0, 1.0)))),
             TokenDefinition::new(r"\w+",
                 Rc::new(TextStyleParams::with_family_and_colour(String::from("Courier New"),
-                                                                Colour::new(0.0, 0.5, 0.0, 1.0)))),
+                                                                &Colour::new(0.0, 0.5, 0.0, 1.0)))),
         ],
 
         Rc::new(TextStyleParams::with_family(String::from("Courier New")))
@@ -181,13 +181,14 @@ fn main() {
 
     println!("Presentation built; displaying....");
 
-    // Create the LSpace area, showing our content
-    let area = LSpaceArea::new(content);
+    // Create the LSpace widget, showing our content
+    let lspace = LSpaceWidget::new(content);
+    let widget = lspace.gtk_widget();
 
     // Create a GTK window in which to place it
     let window = gtk::Window::new(gtk::WindowType::Toplevel).unwrap();
     window.set_title("Render Rust code");
-    window.add(area.borrow().gtk_widget());
+    window.add(&*widget);
     window.set_default_size(800, 500);
 
     // Quit the GTK main loop when the window is closed

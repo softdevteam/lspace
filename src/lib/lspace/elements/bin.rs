@@ -1,5 +1,3 @@
-use std::cell::Ref;
-
 use elements::element::ElementRef;
 use elements::container::TContainerElement;
 

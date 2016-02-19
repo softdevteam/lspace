@@ -203,7 +203,6 @@ impl <'a, 'b> Mul<&'b AffineXform2> for &'a AffineXform2 {
 //
 
 mod tests {
-    use std::mem;
     use super::*;
     use geom::vector2::Vector2;
     use geom::point2::Point2;

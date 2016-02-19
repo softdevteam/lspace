@@ -164,7 +164,6 @@ impl <'a> Neg for &'a Colour {
 //
 
 mod tests {
-    use std::mem;
     use super::*;
 
     #[test]

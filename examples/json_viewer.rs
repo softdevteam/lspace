@@ -25,7 +25,7 @@ use lspace::layout::flow_layout::FlowIndent;
 use lspace::elements::text_element::{TextStyleParams, TextWeight, TextSlant};
 use lspace::pres::pres::Pres;
 use lspace::pres::primitive;
-use lspace::lspace_area::LSpaceArea;
+use lspace::lspace_widget::LSpaceWidget;
 
 
 /// Style sheet
@@ -46,7 +46,7 @@ impl StyleSheet {
         StyleSheet{
             text: Rc::new(TextStyleParams::new("Sans serif".to_string(),
                 TextWeight::Normal, TextSlant::Normal, 12.0,
-                Colour{r: 0.0, g: 0.0, b: 0.0, a: 1.0})),
+                &Colour{r: 0.0, g: 0.0, b: 0.0, a: 1.0})),
 
             column_y_spacing: 0.0,
 
@@ -249,7 +249,7 @@ fn json_to_pres(j: &Json, style: &StyleSheet) -> Pres {
         "Border" => {
             let child = json_to_pres(&obj.get("child").unwrap(), &style);
             let border = Rc::new(json_to_border(j));
-            primitive::Border::new(child, &border)
+            primitive::Border::new(child, border)
         },
         "ApplyStyleSheet" => {
             json_to_pres(obj.get("child").unwrap(), &style.with_values(
@@ -306,14 +306,15 @@ fn main() {
     let style = StyleSheet::default();
     let content = json_to_pres(&j, &style);
 
-    // Create the LSpace area, showing our content
+    // Create the LSpace widget, showing our content
     println!("Displaying....");
-    let area = LSpaceArea::new(content);
+    let lspace = LSpaceWidget::new(content);
+    let widget = lspace.gtk_widget();
 
     // Create a GTK window in which to place it
     let window = gtk::Window::new(gtk::WindowType::Toplevel).unwrap();
     window.set_title("JSON presentation viewer");
-    window.add(area.borrow().gtk_widget());
+    window.add(&*widget);
     window.set_default_size(800, 500);
 
     // Quit the GTK main loop when the window is closed

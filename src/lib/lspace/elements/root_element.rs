@@ -1,24 +1,30 @@
 use cairo::Context;
 
+use std::rc::{Rc, Weak};
 use std::cell::{RefCell, Ref, RefMut};
 
 use layout::lalloc::LAlloc;
 use layout::lreq::LReq;
 use geom::bbox2::BBox2;
 
+use elements::element_ctx::ElementLayoutContext;
 use elements::element_layout::{ElementReq, ElementAlloc};
-use elements::element::{TElement, ElementRef, ElementParentMut};
+use elements::element::{TElement, ElementRef};
 use elements::container::TContainerElement;
 use elements::bin::{TBinElement, BinComponentMut};
 use elements::container_sequence::{TContainerSequenceElement};
+use lspace_area::TLSpaceListener;
 
 
 pub trait TRootElement : TBinElement {
-    fn root_requisition_x(&self) -> f64;
+    fn root_requisition_x(&self, layout_ctx: &ElementLayoutContext) -> f64;
     fn root_allocate_x(&self, width: f64);
     fn root_requisition_y(&self) -> f64;
 
     fn root_allocate_y(&self, height: f64);
+
+    fn root_set_lspace_listener(&self, listener: Option<&Rc<TLSpaceListener>>);
+    fn root_queue_redraw(&self, rect: &BBox2);
 }
 
 
@@ -26,6 +32,7 @@ struct RootElementMut {
     req: ElementReq,
     alloc: ElementAlloc,
     bin: BinComponentMut,
+    listener: Option<Weak<TLSpaceListener>>,
 }
 
 pub struct RootElement {
@@ -36,7 +43,7 @@ impl RootElement {
     pub fn new() -> RootElement {
         return RootElement{m: RefCell::new(RootElementMut{
             req: ElementReq::new(), alloc: ElementAlloc::new(),
-            bin: BinComponentMut::new()})};
+            bin: BinComponentMut::new(), listener: None})};
     }
 }
 
@@ -97,8 +104,8 @@ impl TElement for RootElement {
     }
 
     // Update layout
-    fn update_x_req(&self) -> bool {
-        return self.container_update_x_req();
+    fn update_x_req(&self, layout_ctx: &ElementLayoutContext) -> bool {
+        return self.container_update_x_req(layout_ctx);
     }
 
     fn allocate_x(&self, x_alloc: &LAlloc) -> bool {
@@ -114,16 +121,13 @@ impl TElement for RootElement {
     }
 }
 
-const NO_CHILDREN: [ElementRef; 0] = [];
-
 impl TContainerElement for RootElement {
     fn children(&self) -> Ref<[ElementRef]> {
-        let m = self.m.borrow();
-        return Ref::map(self.m.borrow(), |m| m.bin.children());
+        Ref::map(self.m.borrow(), |m| m.bin.children())
     }
 
     fn compute_x_req(&self) -> LReq {
-        let mut mm = self.m.borrow_mut();
+        let mm = self.m.borrow();
         return match mm.bin.get_child() {
             None => LReq::new_empty(),
             Some(ref ch) => ch.element_req().x_req.clone()
@@ -134,12 +138,12 @@ impl TContainerElement for RootElement {
         let mm = self.m.borrow();
         return match mm.bin.get_child() {
             None => vec![],
-            Some(ref ch) => vec![mm.alloc.x_alloc]
+            Some(_) => vec![mm.alloc.x_alloc]
         };
     }
 
     fn compute_y_req(&self) -> LReq {
-        let mut mm = self.m.borrow_mut();
+        let mm = self.m.borrow();
         return match mm.bin.get_child() {
             None => LReq::new_empty(),
             Some(ref ch) => ch.element_req().y_req.clone()
@@ -150,7 +154,7 @@ impl TContainerElement for RootElement {
         let mm = self.m.borrow();
         return match mm.bin.get_child() {
             None => vec![],
-            Some(ref ch) => vec![mm.alloc.y_alloc]
+            Some(_) => vec![mm.alloc.y_alloc]
         };
     }
 }
@@ -173,8 +177,8 @@ impl TBinElement for RootElement {
 }
 
 impl TRootElement for RootElement {
-    fn root_requisition_x(&self) -> f64 {
-        self.update_x_req();
+    fn root_requisition_x(&self, layout_ctx: &ElementLayoutContext) -> f64 {
+        self.update_x_req(layout_ctx);
         return self.m.borrow().req.x_req.size().size();
     }
 
@@ -195,6 +199,27 @@ impl TRootElement for RootElement {
         let y_alloc = LAlloc::new_from_req_in_avail_size(&self.m.borrow().req.y_req, 0.0, height);
 
         self.allocate_y(&y_alloc);
+    }
+
+    fn root_set_lspace_listener(&self, listener: Option<&Rc<TLSpaceListener>>) {
+        let mut mm = self.m.borrow_mut();
+        mm.listener = match listener {
+            Some(l) => Some(Rc::downgrade(&l)),
+            None => None
+        };
+    }
+
+    fn root_queue_redraw(&self, rect: &BBox2) {
+        let mm = self.m.borrow();
+        match mm.listener {
+            Some(ref ref_listener) => {
+                match Weak::upgrade(ref_listener) {
+                    Some (ref l) => {l.notify_queue_redraw(rect);},
+                    None => {}
+                };
+            },
+            None => {}
+        }
     }
 }
 

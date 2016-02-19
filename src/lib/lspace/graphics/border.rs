@@ -1,4 +1,5 @@
 use std;
+use std::cell::Ref;
 
 use cairo::Context;
 
@@ -6,6 +7,7 @@ use geom::fastminmax::{fast_min, fast_max};
 use geom::colour::Colour;
 
 
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Border {
     SolidBorder{
         thickness: f64,
@@ -29,7 +31,8 @@ impl Border {
     pub fn new_solid(thickness: f64, inset: f64, rounding: f64,
                      border_colour: Colour, background_colour: Option<Colour>) -> Border {
         Border::SolidBorder{thickness: thickness, inset: inset, rounding: rounding,
-            border_colour: border_colour, background_colour: background_colour}
+            border_colour: border_colour,
+            background_colour: background_colour}
     }
 
     pub fn new_filled(left_margin: f64, right_margin: f64,

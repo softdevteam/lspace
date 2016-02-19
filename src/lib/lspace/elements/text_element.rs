@@ -1,7 +1,6 @@
 use std::rc::Rc;
 use std::cell::{RefCell, Ref, RefMut};
 use std::string::String;
-use std::hash::{Hash};
 use std::mem::transmute;
 
 use cairo::Context;
@@ -12,12 +11,19 @@ use layout::lalloc::LAlloc;
 use geom::bbox2::BBox2;
 use geom::colour::{Colour, BLACK};
 use elements::element_layout::{ElementReq, ElementAlloc};
-use elements::element_ctx::{ElementContext};
-use elements::element::{TElement, ElementRef, ElementParentMut};
+use elements::element_ctx::{ElementContext, ElementLayoutContext};
+use elements::element::{TElement, ElementRef, ElementParentMut, queue_resize};
 use elements::container::{TContainerElement};
 use elements::bin::{TBinElement};
 use elements::container_sequence::{TContainerSequenceElement};
 use elements::root_element::{TRootElement};
+use lspace_area::LSpaceArea;
+
+
+pub trait TTextElement : TElement {
+    fn get_text(&self) -> Ref<String>;
+    fn set_text(&self, text: String);
+}
 
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -61,9 +67,9 @@ pub struct TextStyleParams {
 
 impl TextStyleParams {
     pub fn new(font_family: String, weight: TextWeight, slant: TextSlant,
-               size: f64, colour: Colour) -> TextStyleParams {
+               size: f64, colour: &Colour) -> TextStyleParams {
         return TextStyleParams{font_family: font_family, weight: weight, slant: slant, size: size,
-                               colour: colour};
+                               colour: colour.clone()};
     }
 
     pub fn default() -> TextStyleParams {
@@ -78,10 +84,10 @@ impl TextStyleParams {
                                size: 14.0, colour: BLACK};
     }
 
-    pub fn with_family_and_colour(font_family: String, colour: Colour) -> TextStyleParams {
+    pub fn with_family_and_colour(font_family: String, colour: &Colour) -> TextStyleParams {
         return TextStyleParams{font_family: font_family,
                                weight: TextWeight::Normal, slant: TextSlant::Normal,
-                               size: 14.0, colour: colour};
+                               size: 14.0, colour: colour.clone()};
     }
 
     pub fn text_req_key(&self, text: String) -> TextReqKey {
@@ -109,6 +115,7 @@ struct TextElementMut {
     req: Rc<ElementReq>,
     alloc: ElementAlloc,
     text: String,
+    req_up_to_date: bool
 }
 
 pub struct TextElement {
@@ -117,21 +124,30 @@ pub struct TextElement {
 }
 
 impl TextElement {
-    pub fn new(text: String, style: Rc<TextStyleParams>, cairo_ctx: &Context,
-               elem_ctx: &RefCell<ElementContext>) -> TextElement {
-        let req = elem_ctx.borrow_mut().text_shared_req(style.clone(), text.clone(), cairo_ctx);
+    pub fn new(text: String, style: Rc<TextStyleParams>,
+               elem_ctx: &ElementContext) -> TextElement {
         return TextElement{style: style,
                            m: RefCell::new(TextElementMut{
                                 parent: ElementParentMut::new(),
-                                req: req,
+                                req: elem_ctx.empty_shared_req(),
                                 alloc: ElementAlloc::new(),
-                                text: text}),
+                                text: text,
+                                req_up_to_date: false}),
                            };
+    }
+
+    pub fn new_in_area(text: String, style: Rc<TextStyleParams>,
+                       area: &LSpaceArea) -> TextElement {
+        TextElement::new(text, style, &*area.element_context())
     }
 }
 
 impl TElement for TextElement {
     /// Interface acquisition
+    fn as_text_element(&self) -> Option<&TTextElement> {
+        Some(self)
+    }
+
     fn as_container(&self) -> Option<&TContainerElement> {
         return None;
     }
@@ -197,9 +213,18 @@ impl TElement for TextElement {
     }
 
     // Update layout
-    fn update_x_req(&self) -> bool {
+    fn update_x_req(&self, layout_ctx: &ElementLayoutContext) -> bool {
         // Nothing to do; requisition is shared
         let mut mm = self.m.borrow_mut();
+
+        if !mm.req_up_to_date {
+            let elem_ctx = layout_ctx.elem_ctx();
+            let req = elem_ctx.text_shared_req(self.style.clone(), mm.text.clone(),
+                                               layout_ctx.cairo_ctx());
+            mm.req = req;
+            mm.req_up_to_date = true;
+        }
+
         let updated = mm.alloc.is_x_req_update_required();
         mm.alloc.x_req_updated();
         return updated;
@@ -228,3 +253,22 @@ impl TElement for TextElement {
         mm.alloc.y_alloc_updated();
     }
 }
+
+
+impl TTextElement for TextElement {
+    fn get_text(&self) -> Ref<String> {
+        let mm = self.m.borrow();
+        return Ref::map(mm, |m| &m.text);
+    }
+
+    fn set_text(&self, text: String) {
+        {
+            let mut mm = self.m.borrow_mut();
+            mm.text = text;
+            mm.req_up_to_date = false;
+        }
+        queue_resize(self);
+    }
+}
+
+
