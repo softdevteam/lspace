@@ -73,7 +73,7 @@ fn main() {
                                                                11.0,
                                                                &Colour::new(0.0, 0.5, 1.0, 1.0)));
 
-    let lspace = LSpaceArea::new();
+    let lspace = Rc::new(LSpaceArea::new());
 
     // The text that will be edited
     let text = elem_as_ref(text_element::TextElement::new_in_area(String::from("Hello world"),
