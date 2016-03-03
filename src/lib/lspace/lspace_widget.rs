@@ -51,34 +51,37 @@ struct LSpaceWidgetMut {
 }
 
 impl LSpaceWidgetMut {
-    pub fn new_with_area(area: LSpaceArea) -> LSpaceWidgetMut {
+    pub fn new_with_area(area: Rc<LSpaceArea>) -> LSpaceWidgetMut {
         let drawing_area = Rc::new(gtk::DrawingArea::new().unwrap());
         drawing_area.set_can_focus(true);
-        let wrapped_area = Rc::new(area);
+
+        let instance = LSpaceWidgetMut{drawing_area: drawing_area.clone(),
+            area: area.clone()
+        };
 
         {
-            let state_clone = wrapped_area.clone();
+            let state_clone = area.clone();
             drawing_area.connect_realize(move |widget| {
                 state_clone.on_realize();
             });
         }
 
         {
-            let state_clone = wrapped_area.clone();
+            let state_clone = area.clone();
             drawing_area.connect_unrealize(move |widget| {
                 state_clone.on_unrealize();
             });
         }
 
         {
-            let state_clone = wrapped_area.clone();
+            let state_clone = area.clone();
             drawing_area.connect_size_allocate(move |widget, rect| {
                 state_clone.on_size_allocate(rect.width as i32, rect.height as i32);
             });
         }
 
         {
-            let state_clone = wrapped_area.clone();
+            let state_clone = area.clone();
             drawing_area.connect_button_press_event(move |widget, event_button| {
                 let mod_state = gdk_modifier_to_input_mod_state(event_button.state);
                 let pos = Point2::new(event_button.x, event_button.y);
@@ -88,7 +91,7 @@ impl LSpaceWidgetMut {
         }
 
         {
-            let state_clone = wrapped_area.clone();
+            let state_clone = area.clone();
             drawing_area.connect_button_release_event(move |widget, event_button| {
                 let mod_state = gdk_modifier_to_input_mod_state(event_button.state);
                 let pos = Point2::new(event_button.x, event_button.y);
@@ -98,7 +101,7 @@ impl LSpaceWidgetMut {
         }
 
         {
-            let state_clone = wrapped_area.clone();
+            let state_clone = area.clone();
             drawing_area.connect_enter_notify_event(move |widget, event_crossing| {
                 let mod_state = gdk_modifier_to_input_mod_state(event_crossing.state);
                 let pos = Point2::new(event_crossing.x, event_crossing.y);
@@ -108,7 +111,7 @@ impl LSpaceWidgetMut {
         }
 
         {
-            let state_clone = wrapped_area.clone();
+            let state_clone = area.clone();
             drawing_area.connect_leave_notify_event(move |widget, event_crossing| {
                 let mod_state = gdk_modifier_to_input_mod_state(event_crossing.state);
                 let pos = Point2::new(event_crossing.x, event_crossing.y);
@@ -118,7 +121,7 @@ impl LSpaceWidgetMut {
         }
 
         {
-            let state_clone = wrapped_area.clone();
+            let state_clone = area.clone();
             drawing_area.connect_motion_notify_event(move |widget, event_motion| {
                 let mod_state = gdk_modifier_to_input_mod_state(event_motion.state);
                 let pos = Point2::new(event_motion.x, event_motion.y);
@@ -128,7 +131,7 @@ impl LSpaceWidgetMut {
         }
 
         {
-            let state_clone = wrapped_area.clone();
+            let state_clone = area.clone();
             drawing_area.connect_scroll_event(move |widget, event_scroll| {
                 let mod_state = gdk_modifier_to_input_mod_state(event_scroll.state);
                 let pos = Point2::new(event_scroll.x, event_scroll.y);
@@ -138,7 +141,7 @@ impl LSpaceWidgetMut {
         }
 
         {
-            let state_clone = wrapped_area.clone();
+            let state_clone = area.clone();
             drawing_area.connect_key_press_event(move |widget, event_key| {
                 let mod_state = gdk_modifier_to_input_mod_state(event_key.state);
                 let c_key_str = event_key.string as *const c_char;
@@ -149,7 +152,7 @@ impl LSpaceWidgetMut {
         }
 
         {
-            let state_clone = wrapped_area.clone();
+            let state_clone = area.clone();
             drawing_area.connect_key_release_event(move |widget, event_key| {
                 let mod_state = gdk_modifier_to_input_mod_state(event_key.state);
                 let c_key_str = event_key.string as *const c_char;
@@ -160,18 +163,18 @@ impl LSpaceWidgetMut {
         }
 
         {
-            let state_clone = wrapped_area.clone();
+            let state_clone = area.clone();
             drawing_area.connect_draw(move |widget, cairo_context| {
                 state_clone.on_draw(&cairo_context);
                 Inhibit(true)
             });
         }
 
-        LSpaceWidgetMut{drawing_area: drawing_area.clone(), area: wrapped_area.clone()}
+        LSpaceWidgetMut{drawing_area: drawing_area.clone(), area: area.clone()}
     }
 
     pub fn new(content: Pres) -> LSpaceWidgetMut {
-        let area = LSpaceArea::new();
+        let area = Rc::new(LSpaceArea::new());
         area.set_content_pres(content);
         return LSpaceWidgetMut::new_with_area(area);
     }
@@ -187,7 +190,7 @@ pub struct LSpaceWidget {
 }
 
 impl LSpaceWidget {
-    pub fn new_with_area(area: LSpaceArea) -> Rc<LSpaceWidget> {
+    pub fn new_with_area(area: Rc<LSpaceArea>) -> Rc<LSpaceWidget> {
         let inst = Rc::new(LSpaceWidget{m: RefCell::new(LSpaceWidgetMut::new_with_area(area))});
         let listener: Rc<TLSpaceListener> = inst.clone();
         inst.m.borrow().area.set_lspace_listener(Some(&listener));

@@ -28,7 +28,6 @@ pub struct LSpaceAreaMut {
     height: i32,
 
     input_mods: InputModifierState,
-    input_keyboard: Keyboard,
     input_pointer: Pointer,
 
     elem_ctx: ElementContext,
@@ -44,7 +43,6 @@ impl LSpaceAreaMut {
 
         return LSpaceAreaMut{width: 100, height: 100,
             input_mods: InputModifierState::new(),
-            input_keyboard: Keyboard::new(),
             input_pointer: Pointer::new(),
             elem_ctx: ElementContext::new(),
             root_element: root_elem,
@@ -107,12 +105,10 @@ impl LSpaceAreaMut {
 
     pub fn on_key_press(&mut self, mod_state: InputModifierState, key_val: u32, key_string: String) {
         self.input_mods = mod_state;
-        self.input_keyboard.on_key_press(mod_state, key_val, key_string);
     }
 
     pub fn on_key_release(&mut self, mod_state: InputModifierState, key_val: u32, key_string: String) {
         self.input_mods = mod_state;
-        self.input_keyboard.on_key_release(mod_state, key_val, key_string);
     }
 
     pub fn on_draw(&mut self, cairo_ctx: &Context) {
@@ -143,12 +139,15 @@ impl LSpaceAreaMut {
 
 
 pub struct LSpaceArea {
-    m: RefCell<LSpaceAreaMut>
+    m: RefCell<LSpaceAreaMut>,
+    input_keyboard: Keyboard,
 }
 
 impl LSpaceArea {
     pub fn new() -> LSpaceArea {
-        LSpaceArea{m: RefCell::new(LSpaceAreaMut::new())}
+        LSpaceArea{m: RefCell::new(LSpaceAreaMut::new()),
+            input_keyboard: Keyboard::new(),
+        }
     }
 
     pub fn element_context(&self) -> Ref<ElementContext> {
@@ -156,9 +155,8 @@ impl LSpaceArea {
         Ref::map(mm, |x| &x.elem_ctx)
     }
 
-    pub fn keyboard(&self) -> Ref<Keyboard> {
-        let mm = self.m.borrow();
-        Ref::map(mm, |x| &x.input_keyboard)
+    pub fn keyboard(&self) -> &Keyboard {
+        &self.input_keyboard
     }
 
     pub fn set_content_element(&self, content: ElementRef) {
@@ -215,11 +213,13 @@ impl LSpaceArea {
     }
 
     pub fn on_key_press(&self, mod_state: InputModifierState, key_val: u32, key_string: String) {
-        self.m.borrow_mut().on_key_press(mod_state, key_val, key_string);
+        self.m.borrow_mut().on_key_press(mod_state, key_val, key_string.clone());
+        self.input_keyboard.on_key_press(mod_state, key_val, key_string);
     }
 
     pub fn on_key_release(&self, mod_state: InputModifierState, key_val: u32, key_string: String) {
-        self.m.borrow_mut().on_key_release(mod_state, key_val, key_string);
+        self.m.borrow_mut().on_key_release(mod_state, key_val, key_string.clone());
+        self.input_keyboard.on_key_release(mod_state, key_val, key_string);
     }
 
     pub fn on_draw(&self, cairo_ctx: &Context) {

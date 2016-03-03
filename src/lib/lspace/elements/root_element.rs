@@ -9,7 +9,7 @@ use geom::bbox2::BBox2;
 
 use elements::element_ctx::ElementLayoutContext;
 use elements::element_layout::{ElementReq, ElementAlloc};
-use elements::element::{TElement, ElementRef};
+use elements::element::{TElement, ElementRef, queue_resize};
 use elements::container::TContainerElement;
 use elements::bin::{TBinElement, BinComponentMut};
 use elements::container_sequence::{TContainerSequenceElement};
@@ -168,11 +168,17 @@ impl TBinElement for RootElement {
     fn set_child(&self, self_ref: &ElementRef, child: ElementRef) {
         let mut mm = self.m.borrow_mut();
         mm.bin.set_child(self_ref, child);
+        // We should do this but doing so causes a dynamic mut borrow fail, so
+        // don't until this is fixed.
+        //queue_resize(self);
     }
 
     fn clear_child(&self) {
         let mut mm = self.m.borrow_mut();
         mm.bin.clear_child();
+        // We should do this but doing so causes a dynamic mut borrow fail, so
+        // don't until this is fixed.
+        //queue_resize(self);
     }
 }
 
