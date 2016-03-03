@@ -137,7 +137,7 @@ impl TextElement {
     }
 
     pub fn new_in_area(text: String, style: Rc<TextStyleParams>,
-                       area: &LSpaceArea) -> TextElement {
+                       area: &Rc<LSpaceArea>) -> TextElement {
         TextElement::new(text, style, &*area.element_context())
     }
 }
@@ -270,5 +270,3 @@ impl TTextElement for TextElement {
         queue_resize(self);
     }
 }
-
-

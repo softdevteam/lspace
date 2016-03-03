@@ -9,7 +9,7 @@ use geom::bbox2::BBox2;
 
 use elements::element_ctx::ElementLayoutContext;
 use elements::element_layout::{ElementReq, ElementAlloc};
-use elements::element::{TElement, ElementRef, ElementParentMut};
+use elements::element::{TElement, ElementRef, ElementParentMut, queue_resize};
 use elements::container::TContainerElement;
 use elements::bin::{TBinElement};
 use elements::container_sequence::{TContainerSequenceElement, ContainerSequenceComponentMut};
@@ -164,5 +164,6 @@ impl TContainerSequenceElement for ColumnElement {
 
     fn set_children(&self, self_ref: &ElementRef, children: &Vec<ElementRef>) {
         self.m.borrow_mut().container_seq.set_children(self_ref, children);
+        queue_resize(self);
     }
 }
